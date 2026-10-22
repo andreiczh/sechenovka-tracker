@@ -1,10 +1,10 @@
 {
   "name": "sechenovka-tracker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Памятка ВОП и передача пациенту: Трекер Сеченовка",
-  "engines": { "node": ">=20" },
+  "description": "Локальный прототип: ВОП, Mini App пациента и симулятор Telegram",
+  "engines": { "node": ">=22.13" },
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",

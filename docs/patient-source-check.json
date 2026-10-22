@@ -1,0 +1,36 @@
+{
+  "checked_at": "2026-10-23",
+  "form_version": "zolotareva-2023-ru-v1",
+  "form_file": "public/shared/clinical.js",
+  "sha256": "97958b903b3c8fda21e38ba0badfc6b7a91b2b884389c02fb72be45f8ef9a50e",
+  "sources": [
+    {
+      "role": "PHQ-9 Russian wording",
+      "url": "https://psyjournals.ru/journals/cpse/archive/2023_n4/Zolotareva",
+      "license": "CC BY-NC 4.0",
+      "author": "A. A. Zolotareva, 2023",
+      "commercial_rights_verified": false
+    },
+    {
+      "role": "GAD-7 Russian wording",
+      "url": "https://psyjournals.ru/journals/cpp/archive/2023_n4/Zolotareva",
+      "license": "CC BY-NC 4.0",
+      "author": "A. A. Zolotareva, 2023",
+      "commercial_rights_verified": false
+    },
+    {
+      "role": "developer scoring and permission for original instruments",
+      "url": "https://manual.jointcommission.org/pub/BHCInstruments/RomInstr00054/instructions_PHQ.pdf"
+    },
+    {
+      "role": "need for clinician safety assessment",
+      "url": "https://www.nimh.nih.gov/research/research-conducted-at-nimh/asq-toolkit-materials/adult-outpatient/adult-outpatient-brief-suicide-safety-assessment-guide"
+    },
+    {
+      "role": "Russia emergency services 112",
+      "url": "https://60.mchs.gov.ru/deyatelnost/press-centr/novosti/5790783"
+    }
+  ],
+  "digital_format_validated": false,
+  "clinical_review_completed": false
+}
