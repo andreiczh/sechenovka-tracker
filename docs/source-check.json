@@ -1,0 +1,20 @@
+[
+  {
+    "id": "301_3",
+    "url": "https://cr.minzdrav.gov.ru/view-cr/301_3",
+    "checked_on": "2026-10-23",
+    "apply_status": "Применяется",
+    "NPC_approved": true,
+    "same_as_2026_10_19": true,
+    "sha256": "17449139d18db0550d82cea94c56a2965d3e57779f4b35d6652c9c581c706fec"
+  },
+  {
+    "id": "457_3",
+    "url": "https://cr.minzdrav.gov.ru/view-cr/457_3",
+    "checked_on": "2026-10-23",
+    "apply_status": "Применяется",
+    "NPC_approved": true,
+    "same_as_2026_10_19": true,
+    "sha256": "0366165680f465394ea5466c5c51d7e553517bdfcde1ce5c4572030ae7f8f10d"
+  }
+]
