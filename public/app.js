@@ -1,3 +1,4 @@
+import { openVoice } from '/shared/voice-ui.js';
 import { buildVopConversation } from './shared/vop-support.js';
 import { startViewport, revealViewportElement } from './shared/viewport.js';
 import { appConfig } from './config.js';
@@ -214,3 +215,5 @@ byId('checklist-groups').addEventListener('click', event => { const id = event.t
 byId('conversation-button').addEventListener('click',()=>{const items=checklistGroups.flatMap(g=>g.items).filter(i=>selected.has(i.id));const v=buildVopConversation(items,selectedSafety.size>0);byId('conversation-content').innerHTML=v.html;byId('conversation-copy').hidden=!v.script;byId('conversation-dialog').showModal();});
 byId('conversation-close').addEventListener('click',()=>byId('conversation-dialog').close());
 byId('conversation-copy').addEventListener('click',async()=>{const text=byId('conversation-script')?.textContent;if(text)showToast(await copyText(text)?'Объяснение скопировано':'Выделите текст и скопируйте его');});
+
+document.querySelector('#voice-vop-button').addEventListener('click', () => { void openVoice({ scope: 'vop', endpoint: '/api/voice?scope=vop', ownerLabel: 'Короткая беседа на приёме ВОП', getContext: () => ({ observations: [...selected], safety: [...selectedSafety] }), onError: text => alert(text) }); });

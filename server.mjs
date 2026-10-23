@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,12 +18,14 @@ import { createPatientAiService, patientAiView, patientAiWorkspaceId, supportFin
 import { saveTherapyContext } from './lib/therapy-support.mjs';
 import { createTelegram } from './lib/telegram.mjs';
 import { secretMatches, telegramSessionId, verifyTelegramInitData } from './lib/telegram-auth.mjs';
+import { createVoiceService } from './lib/voice.mjs';
+import { createVoiceAssets } from './lib/voice-assets.mjs';
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(directory, 'public');
 const { version } = JSON.parse(await readFile(resolve(directory, 'package.json'), 'utf8'));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
-const headers = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'", 'Cache-Control': 'no-cache' };
+const headers = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'", 'Cache-Control': 'no-cache' };
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -30,11 +33,11 @@ function json(res, status, body, extra = {}) {
   res.writeHead(status, { ...headers, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extra });
   res.end(JSON.stringify(body));
 }
-async function readJson(req) {
+async function readJson(req, maximum = 32768) {
   const chunks = []; let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 32768) throw new HttpError(413, 'Слишком большой запрос');
+    if (size > maximum) throw new HttpError(413, 'Слишком большой запрос');
     chunks.push(chunk);
   }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
@@ -46,12 +49,14 @@ function authorizedJob(req, secret) {
   return secret.length >= 32 && actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)), telegramApi = null, aiFetch = undefined } = {}) {
+export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)), telegramApi = null, telegramFileFetch = undefined, aiFetch = undefined } = {}) {
   const store = storage || (config.databaseUrl ? createPostgresStore(config.databaseUrl) : createStore(storePath));
   const clinicianAuth = createClinicianAuth({ config, store, wallClock });
   const generateAiSummary = createAiSummaryService({ config, store, wallClock, logger, fetchImpl: aiFetch });
   const generatePatientAi = createPatientAiService({ config, store, wallClock, logger, fetchImpl: aiFetch });
-  const telegram = config.telegramToken ? createTelegram({ config, store, wallClock, logger, callApi: telegramApi, generatePatientAi }) : null;
+  const voiceService = createVoiceService({ config, store, wallClock, logger, fetchImpl: aiFetch });
+  const voiceAssets = createVoiceAssets();
+  const telegram = config.telegramToken ? createTelegram({ config, store, wallClock, logger, callApi: telegramApi, generatePatientAi, fileFetch: telegramFileFetch }) : null;
   async function tick() {
     let profiles = 0;
     for (const { id } of await store.all()) {
@@ -91,6 +96,15 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
       try { pathname = decodeURIComponent(new URL(req.url, config.publicOrigin || `http://${host}`).pathname); }
       catch { fail(400, 'Некорректный адрес'); return; }
 
+      if (pathname.startsWith('/voice-assets/')) {
+        if (req.method !== 'GET') { fail(405, 'Метод не поддерживается'); return; }
+        const asset = await voiceAssets(pathname.slice('/voice-assets/'.length));
+        if (!asset) { fail(404, 'Файл речевого модуля не найден'); return; }
+        const type = pathname.endsWith('.wasm') ? 'application/wasm' : /\.m?js$/.test(pathname) ? 'text/javascript; charset=utf-8' : pathname.endsWith('.json') ? 'application/json' : 'application/octet-stream';
+        res.writeHead(200, { ...headers, 'Content-Type': type, 'Content-Length': asset.size, 'Cache-Control': 'public, max-age=86400', ETag: '"' + asset.sha + '"' });
+        const stream = createReadStream(asset.file); stream.on('error', () => res.destroy()); stream.pipe(res); return;
+      }
+
       if (pathname === '/healthz') {
         if (req.method !== 'GET' && req.method !== 'HEAD') { fail(405, 'Метод не поддерживается', { Allow: 'GET, HEAD' }); return; }
         json(res, 200, req.method === 'HEAD' ? undefined : { ok: true, version, mode: 'synthetic-demo', telegram: telegram?.status || { enabled: false, ready: false } });
@@ -116,12 +130,12 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         if (!['GET', 'POST'].includes(req.method)) { fail(405, 'Метод не поддерживается', { Allow: 'GET, POST' }); return; }
         if (!acceptsOrigin(config, host, req.headers.origin) || req.headers['sec-fetch-site'] === 'cross-site') { fail(403, 'Запрос с другого сайта запрещён'); return; }
         if (req.method === 'POST' && (req.headers['x-demo-client'] !== '1' || !req.headers['content-type']?.startsWith('application/json'))) { fail(403, 'Требуется JSON-клиент приложения'); return; }
-        const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events|therapy-context))?)?$/.exec(pathname);
-        const clinicRoute = /^\/api\/clinic\/patients(?:\/(care-[a-f0-9-]{36})(?:\/(review|events|ai-summary|therapy-context))?)?$/.exec(pathname);
+        const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events|therapy-context|voice))?)?$/.exec(pathname);
+        const clinicRoute = /^\/api\/clinic\/patients(?:\/(care-[a-f0-9-]{36})(?:\/(review|events|ai-summary|therapy-context|voice))?)?$/.exec(pathname);
         const clinicSession = pathname === '/api/clinic/session';
         const clinicLogout = req.method === 'POST' && pathname === '/api/clinic/logout';
-        const patientRouteAllowed = route => route && (req.method === 'GET' && !route[2] || req.method === 'POST' && route[1] && route[2]);
-        if (!(req.method === 'GET' && pathname === '/api/state' || req.method === 'POST' && ['/api/action', '/api/ai-support'].includes(pathname) || patientRouteAllowed(doctorRoute) || patientRouteAllowed(clinicRoute) || clinicSession || clinicLogout)) { fail(404, 'Метод не найден'); return; }
+        const patientRouteAllowed = route => route && (req.method === 'GET' && (!route[2] || route[2] === 'voice') || req.method === 'POST' && route[1] && route[2]);
+        if (!(req.method === 'GET' && pathname === '/api/state' || req.method === 'POST' && ['/api/action', '/api/ai-support', '/api/voice'].includes(pathname) || req.method === 'GET' && ['/api/voice', '/api/voice/inbox', '/api/voice/audio'].includes(pathname) || patientRouteAllowed(doctorRoute) || patientRouteAllowed(clinicRoute) || clinicSession || clinicLogout)) { fail(404, 'Метод не найден'); return; }
         const initData = req.headers['x-telegram-init-data'];
         const telegramLaunch = Boolean(initData || req.headers['x-telegram-launch'] === '1');
         let telegramIdentity;
@@ -164,7 +178,11 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
           }
           const row = rows.find(row => row.state.careConnection.id === patientId);
           if (!row) { fail(404, 'Профиль не найден или пациент отключил передачу'); return; }
-          const action = req.method === 'POST' ? await readJson(req) : null;
+          const action = req.method === 'POST' ? await readJson(req, pathname.endsWith('/voice') ? 1048576 : 32768) : null;
+          if (clinicRoute[2] === 'voice') {
+            const result = await voiceService({ sessionId: row.id, patientId, scope: 'psychiatrist', clinic: true, action: action || { op: 'list' }, authorize: () => clinicianAuth.authenticate(req) });
+            json(res, 200, result); return;
+          }
           if (clinicRoute[2] === 'ai-summary') {
             const result = await generateAiSummary({ sessionId: row.id, patientId, action, authorize: () => clinicianAuth.authenticate(req) });
             json(res, 200, result); return;
@@ -180,7 +198,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
             if (!action || typeof action !== 'object' || Array.isArray(action)) throw new HttpError(400, 'Некорректное действие врача');
             if (clinicRoute[2] === 'events') {
               const patient = project();
-              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary', 'support'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(409, 'Данные пациента изменились. Обновите карточку.');
+              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary', 'support', 'voice'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(409, 'Данные пациента изменились. Обновите карточку.');
               workspace.audit.push({ id: randomUUID(), event: 'view-presented', patientId, view: action.view, sourceRevision: patient.sourceRevision, at: new Date(wallClock()).toISOString() });
               workspace.audit = workspace.audit.slice(-200);
             } else if (clinicRoute[2] === 'therapy-context') {
@@ -197,7 +215,22 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         }
         const cookieId = req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith('sechenovka_demo='))?.slice('sechenovka_demo='.length);
         const id = telegramIdentity ? telegramSessionId(telegramIdentity.userId, config.telegramIdentitySecret) : cookieId && /^[a-f0-9-]{36}$/.test(cookieId) ? cookieId : randomUUID();
-        const action = req.method === 'POST' ? await readJson(req) : null;
+        const action = req.method === 'POST' ? await readJson(req, pathname.endsWith('/voice') ? 1048576 : 32768) : null;
+        if (doctorRoute?.[2] === 'voice') {
+          json(res, 200, await voiceService({ sessionId: id, patientId: doctorRoute[1], scope: 'psychiatrist', action: action || { op: 'list' } })); return;
+        }
+        if (pathname === '/api/voice') {
+          const scope = action?.scope || new URL(req.url, 'http://localhost').searchParams.get('scope') || 'patient';
+          if (!['patient', 'vop'].includes(scope)) throw new HttpError(400, 'Invalid voice scope');
+          json(res, 200, await voiceService({ sessionId: id, scope, action: action || { op: 'list' } })); return;
+        }
+        if (pathname === '/api/voice/inbox' || pathname === '/api/voice/audio') {
+          if (!telegramIdentity || !telegram) throw new HttpError(401, 'Open the voice note from Telegram');
+          const result = await telegram.readVoice(id, pathname.endsWith('/audio'));
+          if (result.bytes) { res.writeHead(200, { ...headers, 'Content-Type': 'audio/ogg', 'Cache-Control': 'no-store' }); res.end(result.bytes); }
+          else json(res, 200, result);
+          return;
+        }
         if (pathname === '/api/ai-support') {
           const result = await generatePatientAi({ sessionId: id, action });
           json(res, 200, result); return;
@@ -222,7 +255,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
             if (!patient) throw new HttpError(404, 'Пациент не найден в этом демонстрационном кабинете');
             if (!action || typeof action !== 'object' || Array.isArray(action)) throw new HttpError(400, 'Некорректное действие врача');
             if (doctorRoute[2] === 'events') {
-              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary', 'support'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(400, 'Показ данных не подтверждён актуальной версией');
+              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary', 'support', 'voice'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(400, 'Показ данных не подтверждён актуальной версией');
               workspace.audit.push({ id: randomUUID(), event: 'view-presented', patientId, view: action.view, sourceRevision: patient.sourceRevision, at: new Date(wallClock()).toISOString() });
               workspace.audit = workspace.audit.slice(-200); await transaction.saveWorkspace(id, workspace);
               return reply(200, { ok: true }, extra);
@@ -279,6 +312,12 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
   server.on('close', () => { clearInterval(timer); Promise.resolve(store.close()).catch(() => {}); });
   server.ready = store.ready;
   server.telegram = telegram;
+  server.warmVoice = async () => {
+    const manifest = JSON.parse(await readFile(resolve(directory, 'docs/evidence/voice-assets.json'), 'utf8'));
+    const paths = Object.keys(manifest.assets);
+    for (let i = 0; i < paths.length; i += 2) await Promise.all(paths.slice(i, i + 2).map(path => voiceAssets(path)));
+    logger({ event: 'voice_assets_ready', assets: paths.length, version: manifest.version });
+  };
   return server;
 }
 
@@ -290,6 +329,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     const origin = config.publicOrigin || `http://localhost:${config.port}`;
     console.log(`Трекер Сеченовка\nВОП: ${origin}/\nПациент: ${origin}/patient/\nПсихиатр: ${origin}/psychiatrist/\nДиалог бота: ${origin}/bot/\nПроверка: ${origin}/healthz`);
     server.telegram?.configure().catch(() => console.error(JSON.stringify({ event: 'telegram_setup_error', at: new Date().toISOString() })));
+    if (process.env.RENDER) void server.warmVoice().catch(() => console.error(JSON.stringify({ event: 'voice_assets_retry_on_demand' })));
   })).catch(() => { console.error('Сервер не запущен: не удалось подключить постоянное хранилище. Проверьте серверные настройки.'); process.exitCode = 1; server.close(); });
   for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => server.close(() => process.exit(0)));
 }

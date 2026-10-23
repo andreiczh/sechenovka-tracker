@@ -1,0 +1,12 @@
+Speech recognition runs in the browser with Transformers.js 3.8.1 and ONNX Runtime Web.
+Transformers.js: https://github.com/huggingface/transformers.js - Apache-2.0.
+Model: https://huggingface.co/Xenova/whisper-base - Apache-2.0 per model card.
+Pinned model revision: 64da57285918e20ea79ea5c88eed7197933abaa8.
+ONNX Runtime Web: https://github.com/microsoft/onnxruntime - MIT.
+Full Transformers Apache-2.0 license: /vendor/transformers-LICENSE.txt.
+Full ONNX Runtime MIT license: /vendor/onnxruntime-LICENSE.txt.
+Original OpenAI Whisper implementation/model MIT license: /vendor/whisper-LICENSE.txt.
+The converted Xenova model is distributed under its model card's Apache-2.0 terms;
+the original MIT notice is retained as additional attribution.
+Asset URLs, byte sizes and SHA-256 checksums: docs/evidence/voice-assets.json.
+Audio is not sent to a transcription provider; model files are public static assets.

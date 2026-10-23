@@ -2,7 +2,7 @@
 const fragment = typeof location === 'undefined' ? new URLSearchParams() : new URLSearchParams(location.hash.slice(1));
 const initialData = fragment.get('tgWebAppData') || '';
 const launch = Boolean(initialData || fragment.has('tgWebAppVersion'));
-export const telegramInitialView = typeof location !== 'undefined' && new URLSearchParams(location.search).get('view') === 'settings' ? 'settings' : 'today';
+export const telegramInitialView = typeof location !== 'undefined' && ['settings','support','visit','voice'].includes(new URLSearchParams(location.search).get('view')) ? new URLSearchParams(location.search).get('view') : 'today';
 export function telegramHeaders() {
   const data = globalThis.Telegram?.WebApp?.initData || initialData;
   return data ? { 'X-Telegram-Init-Data': data, 'X-Telegram-Launch': '1' } : launch ? { 'X-Telegram-Launch': '1' } : {};

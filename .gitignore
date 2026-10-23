@@ -10,3 +10,4 @@ test-results/
 *.log
 
 public/__layout-test.*
+public/__voice-test.*
