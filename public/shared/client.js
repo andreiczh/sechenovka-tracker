@@ -1,13 +1,31 @@
+export const REQUEST_TIMEOUT_MS = 12000;
+export async function requestJSON(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const uncertain = options.method === 'POST';
+  const failure = (text, state) => Object.assign(new Error(text), { friendly: true, uncertain, state });
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    let data;
+    try { data = await response.json(); }
+    catch (error) {
+      if (controller.signal.aborted) throw error;
+      throw failure('Сервер временно недоступен. Проверьте соединение и повторите действие.');
+    }
+    if (!response.ok) throw failure(response.status < 500 && typeof data.error === 'string' ? data.error : 'Не удалось сохранить данные: сервер временно недоступен. Повторите действие.', data.state);
+    return data;
+  } catch (error) {
+    if (error.friendly) throw error;
+    throw failure(controller.signal.aborted
+      ? 'Сервер долго не отвечает. Сохранение пока не подтверждено. Проверьте текущий вопрос и повторите действие.'
+      : 'Не удалось связаться с сервером. Сохранение пока не подтверждено. Проверьте соединение и повторите действие.');
+  } finally { clearTimeout(timer); }
+}
 export async function getState() {
-  const response = await fetch('/api/state', { cache: 'no-store' });
-  if (!response.ok) throw new Error('Не удалось открыть тестовый профиль');
-  return response.json();
+  return requestJSON('/api/state', { cache: 'no-store' });
 }
 export async function sendAction(state, action) {
-  const response = await fetch('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Client': '1' }, body: JSON.stringify({ ...action, revision: state.revision }) });
-  const data = await response.json();
-  if (!response.ok) { const error = new Error(data.error || 'Не удалось сохранить'); error.state = data.state; throw error; }
-  return data;
+  return requestJSON('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Client': '1' }, body: JSON.stringify({ ...action, revision: state.revision }) });
 }
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const dateLabel = date => date ? new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`)) : 'Не назначено';

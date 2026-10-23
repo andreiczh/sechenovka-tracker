@@ -13,13 +13,15 @@ function showError(text) { clearTimeout(statusTimer); status.textContent = text;
 async function send(text) {
   if (busy || !state) return;
   if (text === 'Открыть Mini App') { location.href = '/patient/'; return; }
-  busy = true; document.querySelectorAll('button').forEach(b => b.disabled = true);
+  busy = true; document.querySelectorAll('button').forEach(b => b.disabled = true); input.disabled = true; status.textContent = 'Сохраняем ответ…';
   try { state = await sendAction(state, { type: 'bot', text }); input.value = ''; render(); status.textContent = ''; }
-  catch (error) { if (error.state) { state = error.state; render(); } showError(error.message); }
-  finally { busy = false; document.querySelectorAll('button').forEach(b => b.disabled = false); }
+  catch (error) { if (error.state) state = error.state; else if (error.uncertain) { try { state = await getState(); } catch { /* No automatic repeat of a write. */ } } render(); showError(error.message); }
+  finally { busy = false; input.disabled = false; document.querySelectorAll('button').forEach(b => b.disabled = false); }
 }
 document.getElementById('message-form').addEventListener('submit', event => { event.preventDefault(); if (input.value.trim()) send(input.value); });
 keyboard.addEventListener('click', event => { const b = event.target.closest('[data-reply]'); if (b) send(b.dataset.reply); });
 document.getElementById('resume-button').addEventListener('click', () => send('Продолжить'));
 try { state = await getState(); render(); } catch { showError('Локальный сервер недоступен. Запустите сервер проекта и обновите страницу.'); }
-setInterval(async () => { if (busy || document.hidden) return; try { const next = await getState(); if (!state || next.revision !== state.revision) { state = next; render(); } } catch { /* Keep visible history; do not claim delivery. */ } }, 3000);
+async function refreshState() { if (busy || document.hidden) return; try { const next = await getState(); if (!busy && (!state || next.revision >= state.revision && (next.revision !== state.revision || next.today !== state.today))) { state = next; render(); } } catch { /* Keep visible history; do not claim delivery. */ } }
+setInterval(refreshState, 3000);
+window.addEventListener('focus', refreshState);

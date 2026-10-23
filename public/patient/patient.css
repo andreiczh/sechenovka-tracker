@@ -11,3 +11,8 @@
 @media print{.sidebar,.topbar,.mobile-nav,.footer-note,.button,.text-link,.attention-link,.demo-badge{display:none!important}.main-shell{margin:0}.main{padding:0;max-width:none}.card{break-inside:avoid}.print-only{display:block}.page-heading h1{font-size:24px}.two-col{display:block}.two-col>.card{margin-bottom:15px}.summary-box{font-size:11px}}
 
 .welcome-cover{width:100%;display:block;aspect-ratio:5.15;object-fit:cover;object-position:top;border-radius:9px;margin-bottom:28px}.receipt-actions{justify-content:center}.summary-box{font-family:inherit;font-size:11px;white-space:pre-wrap;margin:0;line-height:1.9}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}@media(max-width:700px){.welcome-cover{aspect-ratio:4.7;margin-bottom:23px}.summary-box{font-size:10px}}
+
+.request-status { position: fixed; z-index: 1200; bottom: 82px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 12px 18px; border: 1px solid #ccd9d0; border-radius: 12px; background: #f0f5f1; color: #274638; box-shadow: 0 4px 20px #203b2520; font-size: 14px; }
+.day-strip { grid-template-columns: repeat(auto-fit, minmax(22px, 1fr)); }
+
+.care-plan-fields{display:grid;gap:15px;margin:20px 0 0}.care-plan-fields dt{font-size:10px;color:var(--muted);margin-bottom:5px}.care-plan-fields dd{margin:0;font-size:12px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}

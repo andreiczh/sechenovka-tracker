@@ -73,8 +73,9 @@ test('unknown safety answer preserves help; no-current-thoughts still suggests c
     assert.match(snapshot(state, WALL).recommendation.text, value === 'contact' ? /врачом/ : /112/);
   }
 });
-test('day 7 includes change review; daily sleep can be missing and 0 is a real value', () => {
-  assert.equal(diarySteps(6).some(s => s.id === 'change'), false);
+test('daily change review starts on day 1; sleep can be missing and 0 is a real value', () => {
+  assert.equal(diarySteps(0).some(s => s.id === 'change'), false);
+  assert.equal(diarySteps(1).some(s => s.id === 'change'), true);
   assert.equal(diarySteps(7).some(s => s.id === 'change'), true);
   const state = baseline(); action(state, { type: 'advance', days: 7 });
   finish(state, 'diary', { mood: 0, anxiety: 0, sleep: null, change: 'Стало хуже' });

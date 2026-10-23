@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: sechenovka-tracker
+    runtime: node
+    plan: free
+    region: ohio
+    buildCommand: npm ci --ignore-scripts && npm test
+    startCommand: node server.mjs
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_MODE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: REMINDER_SCHEDULER
+        value: "off"

@@ -5,10 +5,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAppServer } from '../server.mjs';
+import { readConfig } from '../lib/config.mjs';
 test('local API saves across server restart, isolates sessions, rejects stale updates and cross-site writes', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'sechenovka-api-'));
   let server;
-  const start = async () => { server = createAppServer({ storePath: join(dir, 'test.sqlite') }); server.listen(0, '127.0.0.1'); await once(server, 'listening'); return `http://127.0.0.1:${server.address().port}`; };
+  const start = async () => { server = createAppServer({ config: readConfig({}), storePath: join(dir, 'test.sqlite') }); server.listen(0, '127.0.0.1'); await once(server, 'listening'); return `http://127.0.0.1:${server.address().port}`; };
   const stop = async () => { server.close(); await once(server, 'close'); };
   try {
     let url = await start();

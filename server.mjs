@@ -2,72 +2,173 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { createStore } from './lib/store.mjs';
+import { createPostgresStore } from './lib/postgres-store.mjs';
+import { readConfig, acceptsHost, acceptsOrigin } from './lib/config.mjs';
 import { createPatient, createHistory, snapshot, applyAction, deliverReminders, botKeyboard } from './lib/patient.mjs';
 import { demoNow } from './lib/time.mjs';
+import { createClinicianWorkspace, clinicianList, clinicianPatient, saveClinicalReview, patientCarePlan } from './lib/clinician.mjs';
+
 const directory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(directory, 'public');
+const { version } = JSON.parse(await readFile(resolve(directory, 'package.json'), 'utf8'));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
 const headers = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Permissions-Policy': 'camera=(), microphone=(), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'", 'Cache-Control': 'no-cache' };
-function json(res, status, body, extra = {}) { res.writeHead(status, { ...headers, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extra }); res.end(JSON.stringify(body)); }
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+function json(res, status, body, extra = {}) {
+  res.writeHead(status, { ...headers, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...extra });
+  res.end(JSON.stringify(body));
+}
 async function readJson(req) {
   const chunks = []; let size = 0;
-  for await (const chunk of req) { size += chunk.length; if (size > 16384) throw new Error('Слишком большой запрос'); chunks.push(chunk); }
-  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new Error('Некорректный JSON'); }
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > 32768) throw new HttpError(413, 'Слишком большой запрос');
+    chunks.push(chunk);
+  }
+  try { return JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+  catch { throw new HttpError(400, 'Некорректный JSON'); }
 }
-export function createAppServer({ storePath = resolve(directory, '.data/demo.sqlite'), wallClock = () => Date.now() } = {}) {
-  const store = createStore(storePath);
-  const server = createServer(async (req, res) => {
-    const host = req.headers.host;
-    if (!host || !/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) { json(res, 403, { error: 'Доступен только локальный адрес' }); return; }
-    let pathname;
-    try { pathname = decodeURIComponent(new URL(req.url, `http://${host}`).pathname); } catch { json(res, 400, { error: 'Некорректный адрес' }); return; }
-    if (pathname.startsWith('/api/')) {
-      if (!['GET', 'POST'].includes(req.method)) { json(res, 405, { error: 'Метод не поддерживается' }, { Allow: 'GET, POST' }); return; }
-      if (req.headers.origin && req.headers.origin !== `http://${host}` || req.headers['sec-fetch-site'] === 'cross-site') { json(res, 403, { error: 'Запрос с другого сайта запрещён' }); return; }
-      if (req.method === 'POST' && (req.headers['x-demo-client'] !== '1' || !req.headers['content-type']?.startsWith('application/json'))) { json(res, 403, { error: 'Требуется локальный JSON-клиент' }); return; }
-      const cookieId = req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith('sechenovka_demo='))?.slice('sechenovka_demo='.length);
-      const id = cookieId && /^[a-f0-9-]{36}$/.test(cookieId) ? cookieId : randomUUID();
-      let state = store.get(id);
-      const extra = !state ? { 'Set-Cookie': `sechenovka_demo=${id}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=2592000` } : {};
-      if (!state) { state = createPatient(wallClock()); store.save(id, state); }
-      try {
-        if (req.method === 'GET' && pathname === '/api/state') { json(res, 200, { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())) }, extra); return; }
-        if (req.method === 'POST' && pathname === '/api/action') {
-          const action = await readJson(req);
-          state = store.get(id);
-          if (action.revision !== state.revision) { json(res, 409, { error: 'Данные изменились в другом окне. Продолжите с актуального вопроса.', state: { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())) } }, extra); return; }
-          if (action.type === 'reset') state = createPatient(wallClock());
-          else if (action.type === 'seed') state = createHistory(wallClock());
-          else state = applyAction(structuredClone(state), action, wallClock());
-          if (['reset', 'seed'].includes(action.type)) state.revision = action.revision + 1;
-          store.save(id, state);
-          json(res, 200, { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())) }, extra); return;
+function authorizedJob(req, secret) {
+  const actual = Buffer.from(req.headers.authorization || '');
+  const expected = Buffer.from(`Bearer ${secret}`);
+  return secret.length >= 32 && actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)) } = {}) {
+  const store = storage || (config.databaseUrl ? createPostgresStore(config.databaseUrl) : createStore(storePath));
+  async function tick() {
+    let profiles = 0;
+    for (const { id } of await store.all()) {
+      await store.withSession(id, async transaction => {
+        const state = await transaction.get(id);
+        if (state && deliverReminders(state, demoNow(state, wallClock()))) {
+          state.revision++;
+          await transaction.save(id, state);
+          profiles++;
         }
-        json(res, 404, { error: 'Метод не найден' }, extra);
-      } catch (error) { json(res, 400, { error: error.message }, extra); }
-      return;
+      });
     }
-    if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405, { ...headers, Allow: 'GET, HEAD' }); res.end('Method not allowed'); return; }
+    return profiles;
+  }
+  async function view(state, id, transaction) { return { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())), carePlan: patientCarePlan(id ? await transaction.getWorkspace(id) : null, state) }; }
+  const server = createServer(async (req, res) => {
+    const requestId = randomUUID();
+    const host = req.headers.host;
+    let pathname = '';
+    function fail(status, message, extra = {}) {
+      // Never log cookies, authorization, answer bodies, notes or query strings.
+      logger({ event: 'http_error', at: new Date().toISOString(), requestId, method: req.method, route: pathname.startsWith('/api/clinician/') ? '/api/clinician' : ['/api/state', '/api/action', '/internal/reminders/run', '/healthz'].includes(pathname) ? pathname : 'other', status });
+      json(res, status, { error: message, requestId }, extra);
+    }
     try {
-      let file = resolve(root, '.' + pathname);
-      if (file !== root && !file.startsWith(root + sep)) { res.writeHead(403, headers); res.end('Forbidden'); return; }
-      const info = await stat(file);
-      if (info.isDirectory()) file = resolve(file, 'index.html');
-      const body = await readFile(file);
-      res.writeHead(200, { ...headers, 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Content-Length': body.length }); res.end(req.method === 'HEAD' ? undefined : body);
-    } catch { res.writeHead(404, { ...headers, 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Страница не найдена'); }
+      if (!acceptsHost(config, host)) { fail(403, 'Адрес сайта не разрешён'); return; }
+      try { pathname = decodeURIComponent(new URL(req.url, config.publicOrigin || `http://${host}`).pathname); }
+      catch { fail(400, 'Некорректный адрес'); return; }
+
+      if (pathname === '/healthz') {
+        if (req.method !== 'GET' && req.method !== 'HEAD') { fail(405, 'Метод не поддерживается', { Allow: 'GET, HEAD' }); return; }
+        json(res, 200, req.method === 'HEAD' ? undefined : { ok: true, version, mode: 'synthetic-demo' });
+        return;
+      }
+      if (pathname === '/internal/reminders/run') {
+        if (config.scheduler !== 'external') { fail(404, 'Метод не найден'); return; }
+        if (req.method !== 'POST') { fail(405, 'Метод не поддерживается', { Allow: 'POST' }); return; }
+        if (!authorizedJob(req, config.cronSecret)) { fail(403, 'Нет доступа'); return; }
+        json(res, 200, { ok: true, changedProfiles: await tick() });
+        return;
+      }
+      if (pathname.startsWith('/api/')) {
+        if (!['GET', 'POST'].includes(req.method)) { fail(405, 'Метод не поддерживается', { Allow: 'GET, POST' }); return; }
+        if (!acceptsOrigin(config, host, req.headers.origin) || req.headers['sec-fetch-site'] === 'cross-site') { fail(403, 'Запрос с другого сайта запрещён'); return; }
+        if (req.method === 'POST' && (req.headers['x-demo-client'] !== '1' || !req.headers['content-type']?.startsWith('application/json'))) { fail(403, 'Требуется JSON-клиент приложения'); return; }
+        const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events))?)?$/.exec(pathname);
+        if (!(req.method === 'GET' && pathname === '/api/state' || req.method === 'POST' && pathname === '/api/action' || doctorRoute && (req.method === 'GET' && !doctorRoute[2] || req.method === 'POST' && doctorRoute[1] && doctorRoute[2]))) { fail(404, 'Метод не найден'); return; }
+        const cookieId = req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith('sechenovka_demo='))?.slice('sechenovka_demo='.length);
+        const id = cookieId && /^[a-f0-9-]{36}$/.test(cookieId) ? cookieId : randomUUID();
+        const action = req.method === 'POST' ? await readJson(req) : null;
+        const outcome = await store.withSession(id, async transaction => {
+          const reply = (status, data, extra = {}) => ({ status, data, extra });
+          let state = await transaction.get(id);
+          const extra = !state ? { 'Set-Cookie': `sechenovka_demo=${id}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=2592000${config.publicOrigin?.startsWith('https:') ? '; Secure' : ''}` } : {};
+          if (!state) { state = createPatient(wallClock()); await transaction.save(id, state); }
+          if (!state.episodeId) { state.episodeId = randomUUID(); await transaction.save(id, state); }
+          if (doctorRoute) {
+            let workspace = await transaction.getWorkspace(id);
+            if (!workspace) { workspace = createClinicianWorkspace(wallClock()); await transaction.saveWorkspace(id, workspace); }
+            const patientId = doctorRoute[1];
+            if (req.method === 'GET') {
+              if (!patientId) return reply(200, { patients: clinicianList(workspace, state, wallClock()), demo: true }, extra);
+              const patient = clinicianPatient(workspace, patientId, state, wallClock());
+              if (!patient) throw new HttpError(404, 'Пациент не найден в этом демонстрационном кабинете');
+              return reply(200, patient, extra);
+            }
+            const patient = clinicianPatient(workspace, patientId, state, wallClock());
+            if (!patient) throw new HttpError(404, 'Пациент не найден в этом демонстрационном кабинете');
+            if (!action || typeof action !== 'object' || Array.isArray(action)) throw new HttpError(400, 'Некорректное действие врача');
+            if (doctorRoute[2] === 'events') {
+              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(400, 'Показ данных не подтверждён актуальной версией');
+              workspace.audit.push({ id: randomUUID(), event: 'view-presented', patientId, view: action.view, sourceRevision: patient.sourceRevision, at: new Date(wallClock()).toISOString() });
+              workspace.audit = workspace.audit.slice(-200); await transaction.saveWorkspace(id, workspace);
+              return reply(200, { ok: true }, extra);
+            }
+            const result = saveClinicalReview(workspace, patientId, state, action, wallClock());
+            if (result.status !== 200) return reply(result.status, { error: result.error }, extra);
+            await transaction.saveWorkspace(id, workspace);
+            return reply(200, clinicianPatient(workspace, patientId, state, wallClock()), extra);
+          }
+          if (req.method === 'GET') return reply(200, await view(state, id, transaction), extra);
+
+          if (!action || typeof action !== 'object' || Array.isArray(action) || typeof action.type !== 'string') throw new HttpError(400, 'Некорректное действие');
+          if (action.revision !== state.revision) {
+            return reply(409, { error: 'Данные изменились в другом окне. Продолжите с актуального вопроса.', state: await view(state, id, transaction) }, extra);
+          }
+          try {
+            if (action.type === 'reset') state = createPatient(wallClock());
+            else if (action.type === 'seed') state = createHistory(wallClock());
+            else state = applyAction(structuredClone(state), action, wallClock());
+          } catch (error) { throw new HttpError(400, error.message); }
+          if (['reset', 'seed'].includes(action.type)) state.revision = action.revision + 1;
+          await transaction.save(id, state);
+          return reply(200, await view(state, id, transaction), extra);
+        });
+        // Respond only after the database transaction is committed successfully.
+        json(res, outcome.status, outcome.data, outcome.extra);
+        return;
+      }
+      if (!['GET', 'HEAD'].includes(req.method)) { fail(405, 'Метод не поддерживается', { Allow: 'GET, HEAD' }); return; }
+      try {
+        let file = resolve(root, '.' + pathname);
+        if (file !== root && !file.startsWith(root + sep)) { fail(403, 'Нет доступа'); return; }
+        const info = await stat(file);
+        if (info.isDirectory()) file = resolve(file, 'index.html');
+        const body = await readFile(file);
+        res.writeHead(200, { ...headers, 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Content-Length': body.length });
+        res.end(req.method === 'HEAD' ? undefined : body);
+      } catch { res.writeHead(404, { ...headers, 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Страница не найдена'); }
+    } catch (error) { fail(error.status || 500, error.status ? error.message : 'Сервер временно недоступен. Повторите действие позже.'); }
   });
-  const timer = setInterval(() => { for (const { id, state } of store.all()) { if (deliverReminders(state, demoNow(state, wallClock()))) { state.revision++; store.save(id, state); } } }, 15000);
-  timer.unref();
-  server.on('close', () => { clearInterval(timer); store.close(); });
+  server.requestTimeout = 15000;
+  server.headersTimeout = 15000;
+  const timer = config.scheduler === 'local' ? setInterval(() => {
+    tick().catch(() => logger({ event: 'reminder_error', at: new Date().toISOString() }));
+  }, 15000) : null;
+  timer?.unref();
+  server.on('close', () => { clearInterval(timer); Promise.resolve(store.close()).catch(() => {}); });
+  server.ready = store.ready;
   return server;
 }
+
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-  const port = Number(process.env.PORT || 4173);
-  const server = createAppServer();
+  const config = readConfig();
+  const server = createAppServer({ config });
   server.on('error', error => { console.error(`Сервер не запущен: ${error.message}`); process.exitCode = 1; });
-  server.listen(port, '127.0.0.1', () => console.log(`Трекер Сеченовка\nВОП: http://localhost:${port}/\nПациент: http://localhost:${port}/patient/\nДиалог бота: http://localhost:${port}/bot/`));
-  for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => server.close(() => process.exit(0)));
+  server.ready.then(() => server.listen(config.port, config.host, () => {
+    const origin = config.publicOrigin || `http://localhost:${config.port}`;
+    console.log(`Трекер Сеченовка\nВОП: ${origin}/\nПациент: ${origin}/patient/\nПсихиатр: ${origin}/psychiatrist/\nДиалог бота: ${origin}/bot/\nПроверка: ${origin}/healthz`);
+  })).catch(() => { console.error('Сервер не запущен: не удалось подключить постоянное хранилище. Проверьте серверные настройки.'); process.exitCode = 1; server.close(); });
+  for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => server.close(() => process.exit(0)));
 }

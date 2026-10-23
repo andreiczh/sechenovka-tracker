@@ -1,13 +1,23 @@
 {
   "name": "sechenovka-tracker",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "Локальный прототип: ВОП, Mini App пациента и симулятор Telegram",
-  "engines": { "node": ">=22.13" },
+  "description": "Локальный прототип: ВОП, Mini App пациента, кабинет психиатра и симулятор Telegram",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "package": "node scripts/package.mjs",
+    "healthcheck": "node scripts/healthcheck.mjs",
+    "backup": "node scripts/backup.mjs",
+    "reminders": "node scripts/run-reminders.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }

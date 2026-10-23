@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Кабинет психиатра Трекера Сеченовка. Локальная демонстрация на вымышленных данных.">
+  <title>Пациенты — Трекер Сеченовка</title>
+  <link rel="icon" href="/icons/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/patient/patient.css"><link rel="stylesheet" href="/psychiatrist/psychiatrist.css">
+  <script type="module" src="/psychiatrist/psychiatrist.js"></script>
+</head>
+<body class="clinician-app">
+  <a class="skip" href="#main">Перейти к содержимому</a>
+  <div id="app"><main class="loading"><img src="/icons/mark.svg" width="64" height="64" alt=""><p>Открываем кабинет…</p></main></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="request-status" class="request-status" role="status" hidden>Сохраняем запись…</div>
+  <dialog id="modal" class="modal" aria-labelledby="modal-title"></dialog>
+  <noscript>Для кабинета нужен JavaScript. Локальный прототип предназначен только для вымышленных данных.</noscript>
+</body>
+</html>
