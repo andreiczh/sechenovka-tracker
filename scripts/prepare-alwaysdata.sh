@@ -20,6 +20,7 @@ task_env="$task_base/shared/production.env"
 task_release="$task_base/releases/$(date -u +%Y%m%dT%H%M%SZ)-$(printf %.12s "$task_expected")"
 mkdir -p "$task_base/releases" "$task_base/shared/data" "$task_release"
 tar -xzf "$task_archive" -C "$task_release"
+(cd "$task_release" && npm ci --ignore-scripts)
 if [ ! -f "$task_env" ]; then
   node --input-type=module - "$task_env" "$task_account" <<'JS'
 import { writeFileSync } from 'node:fs';
