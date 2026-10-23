@@ -10,12 +10,25 @@ import { createAppServer } from '../server.mjs';
 import { readConfig } from '../lib/config.mjs';
 import { verifyTelegramInitData, telegramSessionId } from '../lib/telegram-auth.mjs';
 import { scoreAssessment } from '../public/shared/clinical.js';
+import { createPatient } from '../lib/patient.mjs';
+import { createTelegram } from '../lib/telegram.mjs';
 
 const TOKEN = '123456:synthetic_token_for_tests_not_a_real_key';
 const SECRET = 'synthetic_webhook_secret_123456789012';
 const IDENTITY = 'synthetic_identity_secret_123456789012';
 const WALL = Date.parse('2026-10-23T05:59:00Z');
 const USER = 123456789;
+
+test('an incomplete transport fixture cannot stop the reminder scheduler or send a message', async () => {
+  const patient = createPatient(WALL), calls = [];
+  const rows = { incomplete: { state: { count: 2 }, chat: { outbox: [{ status: 'pending', id: 'synthetic-message' }] } }, real: { state: patient, chat: { chatId: USER, outbox: [], seen: [] } } };
+  const store = { allTelegram: async () => Object.keys(rows).map(id => ({ id })), withSession: async (id, fn) => fn({ get: async () => rows[id].state, getTelegram: async () => rows[id].chat, saveTelegram: async () => {} }) };
+  const bot = createTelegram({ config: { publicOrigin: 'https://bot.example' }, store, wallClock: () => WALL, callApi: async (...args) => calls.push(args) });
+  assert.equal(await bot.tick(), 0);
+  assert.deepEqual(await bot.flush('incomplete'), { sent: 0 });
+  assert.equal(calls.length, 0);
+  assert.equal(rows.incomplete.chat.outbox[0].status, 'pending');
+});
 function signed(id = USER, now = WALL, extra = {}) {
   const params = new URLSearchParams({ auth_date: String(Math.floor(now / 1000)), user: JSON.stringify({ id, first_name: 'Синтетический' }), ...extra });
   const check = [...params].sort(([a], [b]) => a < b ? -1 : 1).map(([k, v]) => `${k}=${v}`).join('\n');

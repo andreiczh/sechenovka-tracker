@@ -61,9 +61,14 @@ test('reading a safety response never clears raw concern; confirmation requires 
 
 test('drafts never reach a patient; confirmed plan strips internal fields and belongs to one episode', () => {
   const {workspace,live}=setup();
+  live.appointment = { ...live.appointment, date: '2026-10-25', time: '15:00', question: 'Мой вопрос' };
+  assert.equal(clinicianPatient(workspace,'live',live,NOW).appointment.confirmed,false);
   assert.equal(action(workspace,live,'live','draft').status,200);assert.equal(patientCarePlan(workspace,live),null);
   assert.equal(action(workspace,live,'live','confirm').status,200);
   const plan=patientCarePlan(workspace,live);assert.equal(plan.goal,values.goal);
+  const appointment = clinicianPatient(workspace,'live',live,NOW).appointment;
+  assert.equal(appointment.confirmed,true); assert.equal(appointment.date,values.nextDate); assert.equal(appointment.time,values.nextTime);
+  assert.equal(appointment.reportedDate,'2026-10-25'); assert.equal(appointment.question,'Мой вопрос'); assert.equal(live.appointment.date,'2026-10-25');
   assert.equal(plan.clinicalNote,undefined);assert.equal(plan.safetyNote,undefined);assert.equal(plan.sourceRevision,undefined);
   assert.equal(patientCarePlan(workspace,createPatient(NOW)),null);
   assert.equal(patientCarePlan(workspace,createHistory(NOW)),null);
