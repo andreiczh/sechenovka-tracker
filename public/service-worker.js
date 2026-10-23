@@ -1,4 +1,4 @@
-const CACHE = 'sechenovka-vop-v3';
+const CACHE = 'sechenovka-vop-v4';
 const PREFIX = 'sechenovka-vop-';
 const FILES = ['/', '/index.html', '/styles.css', '/app.js', '/config.js', '/clinical-data.js', '/vendor/qrcode.js', '/manifest.webmanifest', '/fonts/golos-text-cyrillic.woff2', '/fonts/golos-text-latin.woff2', '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png'];
 
