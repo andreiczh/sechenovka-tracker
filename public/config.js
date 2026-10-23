@@ -4,5 +4,5 @@ export const appConfig = Object.freeze({
   botUrl: 'https://t.me/sechenov_track_bot',
   // Только правило демонстрационного интерфейса. Не клинический порог.
   checklistThreshold: 0.6,
-  botClinicalFeaturesConnected: false,
+  botClinicalFeaturesConnected: true,
 });

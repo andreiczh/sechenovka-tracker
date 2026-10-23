@@ -18,4 +18,14 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: REMINDER_SCHEDULER
-        value: "off"
+        value: external
+      - key: CRON_SECRET
+        generateValue: true
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: TELEGRAM_IDENTITY_SECRET
+        generateValue: true
+      - key: TELEGRAM_BOT_USERNAME
+        value: sechenov_track_bot

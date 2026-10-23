@@ -33,6 +33,10 @@ test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient
     await first.withSession(row, t => t.save(row, { count: 0 }));
     await assert.rejects(first.withSession(row, async t => { await t.save(row, { count: 999 }); throw new Error('fixture rollback'); }), /fixture rollback/);
     assert.equal(await second.withSession(row, async t => (await t.get(row)).count), 0);
+    await first.withSession(row, t => t.saveTelegram(row, { outbox: [{ status: 'pending', id: 'synthetic-message' }], seen: [1] }));
+    assert.equal((await second.withSession(row, t => t.getTelegram(row))).outbox[0].status, 'pending');
+    await assert.rejects(first.withSession(row, async t => { await t.saveTelegram(row, { outbox: [] }); throw new Error('telegram rollback'); }), /telegram rollback/);
+    assert.equal((await second.withSession(row, t => t.getTelegram(row))).outbox.length, 1);
     await Promise.all(Array.from({ length: 8 }, (_, i) => (i % 2 ? first : second).withSession(row, async t => { const value = await t.get(row); value.count++; await t.save(row, value); })));
     assert.equal(await first.withSession(row, async t => (await t.get(row)).count), 8);
     const a = await start(), b = await start();
@@ -57,7 +61,7 @@ test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient
     const url = new URL(databaseUrl);
     for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslnegotiation']) url.searchParams.delete(key);
     const cleanup = new pg.Pool({ connectionString: url.toString(), ssl: { rejectUnauthorized: true } });
-    try { await cleanup.query('DELETE FROM demo_clinician_workspaces WHERE owner_id = $1', [owner]); await cleanup.query('DELETE FROM demo_sessions WHERE id = ANY($1::text[])', [[owner, row]]); }
+    try { await cleanup.query('DELETE FROM demo_telegram_chats WHERE session_id = $1', [row]); await cleanup.query('DELETE FROM demo_clinician_workspaces WHERE owner_id = $1', [owner]); await cleanup.query('DELETE FROM demo_sessions WHERE id = ANY($1::text[])', [[owner, row]]); }
     finally { await cleanup.end(); }
   }
 });

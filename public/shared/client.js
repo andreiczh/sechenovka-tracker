@@ -1,3 +1,4 @@
+import { telegramHeaders } from './telegram.js';
 export const REQUEST_TIMEOUT_MS = 12000;
 export async function requestJSON(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -22,10 +23,10 @@ export async function requestJSON(url, options = {}, timeoutMs = REQUEST_TIMEOUT
   } finally { clearTimeout(timer); }
 }
 export async function getState() {
-  return requestJSON('/api/state', { cache: 'no-store' });
+  return requestJSON('/api/state', { cache: 'no-store', headers: telegramHeaders() });
 }
 export async function sendAction(state, action) {
-  return requestJSON('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Client': '1' }, body: JSON.stringify({ ...action, revision: state.revision }) });
+  return requestJSON('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Client': '1', ...telegramHeaders() }, body: JSON.stringify({ ...action, revision: state.revision }) });
 }
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const dateLabel = date => date ? new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`)) : 'Не назначено';

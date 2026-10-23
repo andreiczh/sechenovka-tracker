@@ -12,4 +12,4 @@ db.exec('SELECT 1'); db.close();
 for (const file of ['public/index.html', 'public/patient/index.html', 'public/psychiatrist/index.html', 'public/psychiatrist/psychiatrist.js', 'public/bot/index.html', 'public/shared/clinical.js', 'server.mjs']) await access(resolve(root, file), constants.R_OK);
 const { version } = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
 const config = readConfig();
-console.log(JSON.stringify({ ok: true, version, node: process.versions.node, mode: config.production ? 'hosted-synthetic-demo' : 'local-synthetic-demo', publicOrigin: config.publicOrigin, storage: config.storage, scheduler: config.scheduler, psychiatristImplemented: true, telegramConnected: false }));
+console.log(JSON.stringify({ ok: true, version, node: process.versions.node, mode: config.production ? 'hosted-synthetic-demo' : 'local-synthetic-demo', publicOrigin: config.publicOrigin, storage: config.storage, scheduler: config.scheduler, psychiatristImplemented: true, telegramConfigured: Boolean(config.telegramToken) }));

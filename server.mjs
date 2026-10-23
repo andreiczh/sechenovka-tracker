@@ -9,6 +9,8 @@ import { readConfig, acceptsHost, acceptsOrigin } from './lib/config.mjs';
 import { createPatient, createHistory, snapshot, applyAction, deliverReminders, botKeyboard } from './lib/patient.mjs';
 import { demoNow } from './lib/time.mjs';
 import { createClinicianWorkspace, clinicianList, clinicianPatient, saveClinicalReview, patientCarePlan } from './lib/clinician.mjs';
+import { createTelegram } from './lib/telegram.mjs';
+import { secretMatches, telegramSessionId, verifyTelegramInitData } from './lib/telegram-auth.mjs';
 
 const directory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(directory, 'public');
@@ -38,11 +40,13 @@ function authorizedJob(req, secret) {
   return secret.length >= 32 && actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)) } = {}) {
+export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)), telegramApi = null } = {}) {
   const store = storage || (config.databaseUrl ? createPostgresStore(config.databaseUrl) : createStore(storePath));
+  const telegram = config.telegramToken ? createTelegram({ config, store, wallClock, logger, callApi: telegramApi }) : null;
   async function tick() {
     let profiles = 0;
     for (const { id } of await store.all()) {
+      if (id.startsWith('tg-')) continue;
       await store.withSession(id, async transaction => {
         const state = await transaction.get(id);
         if (state && deliverReminders(state, demoNow(state, wallClock()))) {
@@ -52,9 +56,13 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         }
       });
     }
-    return profiles;
+    return profiles + (telegram ? await telegram.tick() : 0);
   }
-  async function view(state, id, transaction) { return { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())), carePlan: patientCarePlan(id ? await transaction.getWorkspace(id) : null, state) }; }
+  async function view(state, id, transaction) {
+    const inTelegram = id?.startsWith('tg-') || false;
+    const chat = inTelegram ? await transaction.getTelegram(id) : null;
+    return { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())), carePlan: patientCarePlan(!inTelegram && id ? await transaction.getWorkspace(id) : null, state), telegram: { available: Boolean(telegram), authenticated: inTelegram, messagesEnabled: Boolean(chat && !chat.blocked), remindersScheduled: Boolean(telegram && config.scheduler === 'external'), username: config.telegramUsername || 'sechenov_track_bot' } };
+  }
   const server = createServer(async (req, res) => {
     const requestId = randomUUID();
     const host = req.headers.host;
@@ -71,7 +79,16 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
 
       if (pathname === '/healthz') {
         if (req.method !== 'GET' && req.method !== 'HEAD') { fail(405, 'Метод не поддерживается', { Allow: 'GET, HEAD' }); return; }
-        json(res, 200, req.method === 'HEAD' ? undefined : { ok: true, version, mode: 'synthetic-demo' });
+        json(res, 200, req.method === 'HEAD' ? undefined : { ok: true, version, mode: 'synthetic-demo', telegram: telegram?.status || { enabled: false, ready: false } });
+        return;
+      }
+      if (pathname === '/telegram/webhook') {
+        if (!telegram) { fail(404, 'Метод не найден'); return; }
+        if (req.method !== 'POST') { fail(405, 'Метод не поддерживается', { Allow: 'POST' }); return; }
+        if (!secretMatches(req.headers['x-telegram-bot-api-secret-token'], config.telegramWebhookSecret)) { fail(403, 'Нет доступа'); return; }
+        if (!req.headers['content-type']?.startsWith('application/json')) { fail(400, 'Требуется JSON'); return; }
+        const result = await telegram.handleUpdate(await readJson(req));
+        json(res, result.ok === false ? 503 : 200, { ok: result.ok !== false });
         return;
       }
       if (pathname === '/internal/reminders/run') {
@@ -87,13 +104,22 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         if (req.method === 'POST' && (req.headers['x-demo-client'] !== '1' || !req.headers['content-type']?.startsWith('application/json'))) { fail(403, 'Требуется JSON-клиент приложения'); return; }
         const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events))?)?$/.exec(pathname);
         if (!(req.method === 'GET' && pathname === '/api/state' || req.method === 'POST' && pathname === '/api/action' || doctorRoute && (req.method === 'GET' && !doctorRoute[2] || req.method === 'POST' && doctorRoute[1] && doctorRoute[2]))) { fail(404, 'Метод не найден'); return; }
+        const initData = req.headers['x-telegram-init-data'];
+        const telegramLaunch = Boolean(initData || req.headers['x-telegram-launch'] === '1');
+        let telegramIdentity;
+        if (telegramLaunch) {
+          if (!telegram) { fail(503, 'Подключение Telegram временно недоступно'); return; }
+          try { telegramIdentity = verifyTelegramInitData(initData, config.telegramToken, wallClock()); }
+          catch (error) { fail(401, error.message); return; }
+          if (doctorRoute) { fail(403, 'Врачебный доступ из пациентского Telegram-профиля не подключён'); return; }
+        }
         const cookieId = req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith('sechenovka_demo='))?.slice('sechenovka_demo='.length);
-        const id = cookieId && /^[a-f0-9-]{36}$/.test(cookieId) ? cookieId : randomUUID();
+        const id = telegramIdentity ? telegramSessionId(telegramIdentity.userId, config.telegramIdentitySecret) : cookieId && /^[a-f0-9-]{36}$/.test(cookieId) ? cookieId : randomUUID();
         const action = req.method === 'POST' ? await readJson(req) : null;
         const outcome = await store.withSession(id, async transaction => {
           const reply = (status, data, extra = {}) => ({ status, data, extra });
           let state = await transaction.get(id);
-          const extra = !state ? { 'Set-Cookie': `sechenovka_demo=${id}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=2592000${config.publicOrigin?.startsWith('https:') ? '; Secure' : ''}` } : {};
+          const extra = !state && !telegramIdentity ? { 'Set-Cookie': `sechenovka_demo=${id}; Path=/api; HttpOnly; SameSite=Strict; Max-Age=2592000${config.publicOrigin?.startsWith('https:') ? '; Secure' : ''}` } : {};
           if (!state) { state = createPatient(wallClock()); await transaction.save(id, state); }
           if (!state.episodeId) { state.episodeId = randomUUID(); await transaction.save(id, state); }
           if (doctorRoute) {
@@ -146,7 +172,8 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         const info = await stat(file);
         if (info.isDirectory()) file = resolve(file, 'index.html');
         const body = await readFile(file);
-        res.writeHead(200, { ...headers, 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Content-Length': body.length });
+        const pageHeaders = pathname.startsWith('/patient') ? { ...headers, 'Content-Security-Policy': headers['Content-Security-Policy'].replace("script-src 'self'", "script-src 'self' https://telegram.org").replace("frame-ancestors 'self'", "frame-ancestors 'self' https://web.telegram.org") } : headers;
+        res.writeHead(200, { ...pageHeaders, 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Content-Length': body.length });
         res.end(req.method === 'HEAD' ? undefined : body);
       } catch { res.writeHead(404, { ...headers, 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Страница не найдена'); }
     } catch (error) { fail(error.status || 500, error.status ? error.message : 'Сервер временно недоступен. Повторите действие позже.'); }
@@ -159,6 +186,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
   timer?.unref();
   server.on('close', () => { clearInterval(timer); Promise.resolve(store.close()).catch(() => {}); });
   server.ready = store.ready;
+  server.telegram = telegram;
   return server;
 }
 
@@ -169,6 +197,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   server.ready.then(() => server.listen(config.port, config.host, () => {
     const origin = config.publicOrigin || `http://localhost:${config.port}`;
     console.log(`Трекер Сеченовка\nВОП: ${origin}/\nПациент: ${origin}/patient/\nПсихиатр: ${origin}/psychiatrist/\nДиалог бота: ${origin}/bot/\nПроверка: ${origin}/healthz`);
+    server.telegram?.configure().catch(() => console.error(JSON.stringify({ event: 'telegram_setup_error', at: new Date().toISOString() })));
   })).catch(() => { console.error('Сервер не запущен: не удалось подключить постоянное хранилище. Проверьте серверные настройки.'); process.exitCode = 1; server.close(); });
   for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => server.close(() => process.exit(0)));
 }
