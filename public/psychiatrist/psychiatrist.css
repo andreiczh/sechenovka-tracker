@@ -32,6 +32,13 @@
 .clinician-app .stack{gap:20px}
 .clinician-app .topbar-right{gap:18px}
 .eyebrow{color:var(--green)}
+.ai-summary{margin-bottom:14px}
+.ai-summary-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
+.ai-facts,.ai-questions{padding-left:19px;margin:12px 0;line-height:1.7}
+.ai-facts li,.ai-questions li{margin-bottom:10px}
+.ai-facts p{margin:0}
+.ai-facts .text-link{min-height:28px}
+.ai-summary h3{margin-top:14px!important}
 .lead-row{display:flex;align-items:start;justify-content:space-between;gap:20px}
 .lead-row .page-heading{flex:1}
 .subtle-label{display:block;font-size:10px;color:var(--muted);line-height:1.7;margin-top:5px;font-weight:400}

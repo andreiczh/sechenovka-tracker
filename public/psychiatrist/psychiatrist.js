@@ -11,8 +11,9 @@ const formDrafts = new Map(), presented = new Set();
 const draftKey = p => `${p.id}:${p.episodeId}`;
 let toastTimer;
 let clinicSession = null, workspaceMode = 'clinic';
+let aiBusy = false, aiError = '';
 const apiBase = () => workspaceMode === 'clinic' ? '/api/clinic/patients' : '/api/clinician/patients';
-function clearPrivateView() { loadVersion++; loading = false; document.querySelector('#request-status').hidden = true; patient = null; roster = []; formDrafts.clear(); presented.clear(); if (modal.open) modal.close(); }
+function clearPrivateView() { loadVersion++; loading = false; aiError = ''; document.querySelector('#request-status').hidden = true; patient = null; roster = []; formDrafts.clear(); presented.clear(); if (modal.open) modal.close(); }
 function loginPage() {
   return `<main class="clinic-login"><a class="brand" href="/"><img src="/icons/mark.svg" alt="" width="36" height="36"><span>Трекер Сеченовка</span></a><section class="card"><div class="eyebrow">Кабинет психиатра</div><h1>Подключённые профили</h1><p>Войдите, чтобы увидеть тестовые анкеты, дневник и динамику из бота и Mini App.</p><form id="clinic-login-form"><label class="form-field">Ключ доступа<input type="password" name="key" autocomplete="off" required placeholder="Ключ учебного кабинета"></label><p id="login-error" class="sync-error" role="alert"></p><button class="button" type="submit">Войти в кабинет</button></form><p class="small muted">Вводите только вымышленные данные. Сеанс длится до 12 часов. Медицинское наблюдение в реальном времени не организовано.</p><button class="text-link" data-action="demo-workspace">Посмотреть готовые примеры →</button></section></main>`;
 }
@@ -138,7 +139,28 @@ function patientPlan(v) {
 }
 function summary() {
   const p=patient;
-  return `<div class="summary-actions">${button(icon('download')+' Скачать TXT','download-summary')}${button('Копировать сводку','copy-summary')}${button('Печать / сохранить PDF','print')}${button('Скачать дневник CSV','csv')}</div><section class="card"><div class="summary-top"><h2>Сводка перед приёмом</h2><p class="small muted section-gap">Сформирована из сохранённых полей. Самоотчёт, пропуски и врачебная запись разделены. Полная версия содержит внутреннюю запись врача; для пациента предназначен только подтверждённый план.</p></div><pre class="summary-sheet" id="summary-content">${h(p.summary)}</pre></section>`;
+  return `<div class="summary-actions">${button(icon('download')+' Скачать TXT','download-summary')}${button('Копировать сводку','copy-summary')}${button('Печать / сохранить PDF','print')}${button('Скачать дневник CSV','csv')}</div>${aiSummary(p)}<section class="card"><div class="summary-top"><h2>Полная сводка из сохранённых полей</h2><p class="small muted section-gap">Самоотчёт, пропуски и врачебная запись разделены. Полная версия содержит внутреннюю запись врача; для пациента предназначен только подтверждённый план.</p></div><pre class="summary-sheet" id="summary-content">${h(p.summary)}</pre></section>`;
+}
+function aiSummary(p) {
+  if(workspaceMode!=='clinic')return `<section class="card"><h2>Краткая сводка к беседе</h2><p>Генерация доступна для подключённого тестового профиля после входа в кабинет.</p></section>`;
+  const ai=p.ai, draft=ai?.draft, waiting=aiBusy||ai?.pending;
+  return `<section class="card ai-summary" aria-label="Краткая сводка к беседе"><div class="ai-summary-heading"><div><h2>Краткая сводка к беседе</h2><p class="small muted">Черновик · проверьте исходные ответы перед использованием</p></div>${button(waiting?'Готовим сводку…':draft&&!ai.stale?'Сводка готова':draft?'Обновить краткую сводку':'Подготовить краткую сводку','generate-ai',false,!ai?.enabled||waiting||draft&&!ai.stale?'disabled':'')}</div><p class="small muted">${h(ai?.provider||"ИИ-сервис")} выбирает важные факты и вопросы. Числа и формулировки фактов берутся из сохранённых полей. Передаются только структурированные вымышленные данные без имён, кодов и свободного текста. Бесплатный поставщик может сохранять их и использовать для обучения.</p>${aiError?`<p class="notice red" role="alert">${h(aiError)}</p>`:''}${!ai?.enabled?'<p class="small muted">Сервис пока не подключён. Полная сводка ниже доступна.</p>':''}${waiting?'<p role="status" class="small">Обычно это занимает несколько секунд. Полная сводка доступна ниже.</p>':''}${draft?`${ai.stale?'<p class="notice red">После подготовки появились новые данные. Этот черновик устарел — обновите его перед использованием.</p>':''}<p class="small muted">Подготовлено ${h(when(draft.generatedAt))} · ${h(draft.model)}</p><section class="ai-group"><h3>На что обратить внимание</h3><ul class="ai-facts">${draft.highlights.map(f=>`<li><p>${h(f.text)}</p><a class="text-link" href="${pathFor(p.id,f.tab)}">${h(tabs.find(t=>t[0]===f.tab)?.[1]||'Исходные данные')} →</a></li>`).join('')}</ul></section><section class="ai-group"><h3>Уточнить при беседе</h3><ul class="ai-questions">${draft.questions.map(q=>`<li>${h(q.text)}</li>`).join('')}</ul></section><div class="row">${button('Скачать краткую сводку TXT','download-ai')}</div>`:'<p class="small">Нажмите кнопку: получите список важных наблюдений со ссылками на анкеты, дневник и динамику, а также вопросы к приёму.</p>'}<p class="small muted">${h(ai?.limitations?.join(' ')||'Черновик не является диагнозом или назначением и не передаётся пациенту как план.')}</p></section>`;
+}
+function aiText(p) {
+  const d=p.ai.draft;
+  return `ТРЕКЕР СЕЧЕНОВКА · ЧЕРНОВИК КРАТКОЙ СВОДКИ\nВымышленные данные. Требуется проверка врачом.\nПодготовлено ${d.generatedAt}; ${d.model}; ${d.promptVersion}.\n${p.ai.stale?'ВНИМАНИЕ: исходные данные изменились; черновик устарел.\n':''}\nНАБЛЮДЕНИЯ\n${d.highlights.map(f=>'• '+f.text+' [Источник: '+(tabs.find(t=>t[0]===f.tab)?.[1]||f.tab)+']').join('\n')}\n\nУТОЧНИТЬ ПРИ БЕСЕДЕ\n${d.questions.map(q=>'• '+q.text).join('\n')}\n\n${p.ai.limitations.join('\n')}\nЧерновик не является врачебной записью или подтверждённым планом.`;
+}
+async function generateAi() {
+  if(busy||aiBusy||!patient?.ai?.enabled)return;
+  const id=patient.id, episode=patient.episodeId, mode=workspaceMode;
+  busy=true;aiBusy=true;aiError='';captureForm();render();
+  try {
+    await requestJSON(`${apiBase()}/${id}/ai-summary`,{method:'POST',headers:{'Content-Type':'application/json','X-Demo-Client':'1'},body:JSON.stringify({episodeId:episode,sourceRevision:patient.sourceRevision})},30000);
+    if(workspaceMode===mode&&route().id===id)toast('Краткая сводка готова. Проверьте её по исходным данным.');
+  }catch(error){
+    if(error.status===401){authExpired();return;}
+    if(workspaceMode===mode&&route().id===id){aiError=error.status<500?error.message:'ИИ-сервис не подготовил сводку. Полная версия доступна; повторите позже.';toast(aiError,true);}
+  }finally{busy=false;aiBusy=false;render();await load({force:true});}
 }
 function captureForm() {
   const form=document.querySelector('#clinical-form');
@@ -196,7 +218,7 @@ async function load({silent=false,force=false}={}) {
     if(r.id){
       const next=await requestJSON(`${apiBase()}/${r.id}`,{cache:'no-store'});
       if(version!==loadVersion||route().id!==r.id)return;
-      const changed=!patient||patient.id!==next.id||patient.sourceRevision!==next.sourceRevision||patient.review.revision!==next.review.revision;
+      const changed=!patient||patient.id!==next.id||patient.sourceRevision!==next.sourceRevision||patient.review.revision!==next.review.revision||JSON.stringify(patient.ai)!==JSON.stringify(next.ai);
       if(changed&&silent&&patient&&formDrafts.get(draftKey(patient))?.dirty){const el=document.querySelector('#sync-status');if(el)el.textContent='Есть новые данные. Сохраните черновик и обновите карточку.';return;}
       captureForm();patient=next;lastSync=new Date();if(syncError){clearTimeout(toastTimer);document.querySelector('#toast').hidden=true;}syncError=false;
       if(changed||force||!silent)render();
@@ -233,6 +255,8 @@ document.addEventListener('click',async event=>{
   if(action==='day'){selectedDay=Number(el.dataset.day);render();document.querySelector(`[data-action="day"][data-day="${selectedDay}"]`)?.focus({preventScroll:true});return;}
   if(action==='metric'){metric=el.dataset.metric;render();document.querySelector(`[data-metric="${metric}"]`)?.focus({preventScroll:true});return;}
   if(action==='csv'){csv();return;}
+  if(action==='generate-ai'){await generateAi();return;}
+  if(action==='download-ai'){if(patient?.ai?.draft){download(aiText(patient),`kratkaya-svodka-${patient.identity.code}.txt`);toast('Черновик сохранён. Проверьте факты перед использованием.');}return;}
   if(action==='download-summary'){download(patient.summary,`svodka-${patient.identity.code}.txt`);toast('Сводка сохранена. Она содержит внутреннюю запись врача.');return;}
   if(action==='copy-summary'){try{await navigator.clipboard.writeText(patient.summary);toast('Сводка скопирована. Она содержит внутреннюю запись врача.');}catch{showModal('Скопировать сводку',`<p>Выделите и скопируйте текст:</p><textarea class="summary-box" readonly aria-label="Текст сводки">${h(patient.summary)}</textarea>`);modal.querySelector('textarea').select();}return;}
   if(action==='print'){window.print();return;}
@@ -240,7 +264,7 @@ document.addEventListener('click',async event=>{
   if(action==='publish-plan'){if(!document.querySelector('#reviewed-check').checked){document.querySelector('#confirmation-error').textContent='Подтвердите, что данные и план просмотрены.';return;}el.disabled=true;el.dataset.locked='true';await saveReview('confirm',planValues(patient),true);return;}
   if(action==='viewed'){el.disabled=true;el.dataset.locked='true';captureForm();await saveReview('viewed');return;}
 });
-window.addEventListener('hashchange',()=>{captureForm();assessmentId=null;selectedDay=null;const r=route();if(patient?.id!==r.id)patient=null;render();load();window.scrollTo({top:0,behavior:'instant'});document.querySelector('h1')?.focus({preventScroll:true});});
+window.addEventListener('hashchange',()=>{captureForm();assessmentId=null;selectedDay=null;const r=route();if(patient?.id!==r.id){patient=null;aiError='';}render();load();window.scrollTo({top:0,behavior:'instant'});document.querySelector('h1')?.focus({preventScroll:true});});
 window.addEventListener('beforeunload',event=>{if([...formDrafts.values()].some(v=>v.dirty)){event.preventDefault();event.returnValue='';}});
 window.addEventListener('focus',()=>load({silent:true}));
 window.addEventListener('online',()=>load({silent:true}));

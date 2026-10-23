@@ -11,6 +11,7 @@ import { demoNow } from './lib/time.mjs';
 import { createClinicianWorkspace, clinicianList, clinicianListItem, clinicianPatient, saveClinicalReview, patientCarePlan } from './lib/clinician.mjs';
 import { connectedCase, isSharedPatient, clinicWorkspaceId, emptyClinicWorkspace } from './lib/care-link.mjs';
 import { createClinicianAuth } from './lib/clinician-auth.mjs';
+import { aiView, createAiSummaryService } from './lib/ai-summary.mjs';
 import { createTelegram } from './lib/telegram.mjs';
 import { secretMatches, telegramSessionId, verifyTelegramInitData } from './lib/telegram-auth.mjs';
 
@@ -42,10 +43,11 @@ function authorizedJob(req, secret) {
   return secret.length >= 32 && actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)), telegramApi = null } = {}) {
+export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)), telegramApi = null, aiFetch = undefined } = {}) {
   const store = storage || (config.databaseUrl ? createPostgresStore(config.databaseUrl) : createStore(storePath));
   const telegram = config.telegramToken ? createTelegram({ config, store, wallClock, logger, callApi: telegramApi }) : null;
   const clinicianAuth = createClinicianAuth({ config, store, wallClock });
+  const generateAiSummary = createAiSummaryService({ config, store, wallClock, logger, fetchImpl: aiFetch });
   async function tick() {
     let profiles = 0;
     for (const { id } of await store.all()) {
@@ -108,7 +110,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         if (!acceptsOrigin(config, host, req.headers.origin) || req.headers['sec-fetch-site'] === 'cross-site') { fail(403, 'Запрос с другого сайта запрещён'); return; }
         if (req.method === 'POST' && (req.headers['x-demo-client'] !== '1' || !req.headers['content-type']?.startsWith('application/json'))) { fail(403, 'Требуется JSON-клиент приложения'); return; }
         const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events))?)?$/.exec(pathname);
-        const clinicRoute = /^\/api\/clinic\/patients(?:\/(care-[a-f0-9-]{36})(?:\/(review|events))?)?$/.exec(pathname);
+        const clinicRoute = /^\/api\/clinic\/patients(?:\/(care-[a-f0-9-]{36})(?:\/(review|events|ai-summary))?)?$/.exec(pathname);
         const clinicSession = pathname === '/api/clinic/session';
         const clinicLogout = req.method === 'POST' && pathname === '/api/clinic/logout';
         const patientRouteAllowed = route => route && (req.method === 'GET' && !route[2] || req.method === 'POST' && route[1] && route[2]);
@@ -126,7 +128,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
           if (clinicSession) {
             if (req.method === 'GET') {
               const session = await clinicianAuth.authenticate(req);
-              json(res, 200, { enabled: Boolean(config.clinicianAccessKey), authenticated: Boolean(session), expiresAt: session?.expiresAt || null }); return;
+              json(res, 200, { enabled: Boolean(config.clinicianAccessKey), authenticated: Boolean(session), expiresAt: session?.expiresAt || null, aiEnabled: config.aiEnabled }); return;
             }
             const action = await readJson(req);
             const result = await clinicianAuth.login(req, action?.key);
@@ -156,13 +158,17 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
           const row = rows.find(row => row.state.careConnection.id === patientId);
           if (!row) { fail(404, 'Профиль не найден или пациент отключил передачу'); return; }
           const action = req.method === 'POST' ? await readJson(req) : null;
+          if (clinicRoute[2] === 'ai-summary') {
+            const result = await generateAiSummary({ sessionId: row.id, patientId, action, authorize: () => clinicianAuth.authenticate(req) });
+            json(res, 200, result); return;
+          }
           const outcome = await store.withSession(row.id, async transaction => {
             const state = await transaction.get(row.id);
             if (!isSharedPatient(state) || state.careConnection.id !== patientId) throw new HttpError(404, 'Профиль не найден или пациент отключил передачу');
             const workspaceId = clinicWorkspaceId(row.id);
             const workspace = await transaction.getWorkspace(workspaceId) || emptyClinicWorkspace(wallClock());
             const entry = connectedCase(state, row.id);
-            const project = () => clinicianPatient(workspace, patientId, state, wallClock(), entry);
+            const project = () => { const p = clinicianPatient(workspace, patientId, state, wallClock(), entry); p.ai = aiView(workspace, p, config, wallClock()); return p; };
             if (req.method === 'GET') return { status: 200, data: project() };
             if (!action || typeof action !== 'object' || Array.isArray(action)) throw new HttpError(400, 'Некорректное действие врача');
             if (clinicRoute[2] === 'events') {

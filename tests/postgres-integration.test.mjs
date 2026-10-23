@@ -74,16 +74,27 @@ test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient
     const linkedPlan = (await call(otherServer, '/api/state')).data;
     assert.equal(linkedPlan.carePlan.goal, values.goal);
     assert.doesNotMatch(JSON.stringify(linkedPlan), /INTEGRATION-PRIVATE|INTEGRATION-SAFETY/);
+    const source = (await call(otherServer, '/api/clinic/patients/' + id, undefined, authCookie)).data;
+    const aiWitness = { id: 'AI-PG-DRAFT-' + owner, sourceRevision: source.sourceRevision, episodeId: source.episodeId, model: 'openai/gpt-oss-20b', promptVersion: 'visit-priorities-v1', generatedAt: new Date().toISOString(), highlights: [], questions: [], usage: { input: 100, output: 10 } };
+    await first.withSession(owner, async transaction => {
+      const workspace = await transaction.getWorkspace(`clinic:${owner}`);
+      workspace.aiSummaries = { [`${id}:${source.episodeId}`]: { draft: aiWitness, pending: null } };
+      await transaction.saveWorkspace(`clinic:${owner}`, workspace);
+    });
+    assert.equal((await call(otherServer, '/api/clinic/patients/' + id, undefined, authCookie)).data.ai.draft.id, aiWitness.id);
+    assert.doesNotMatch(JSON.stringify((await call(otherServer, '/api/state')).data), /AI-PG-DRAFT/);
     await stop();
     const afterDeployment = await start();
-    assert.equal((await call(afterDeployment, '/api/clinic/patients/' + id, undefined, authCookie)).data.review.confirmed.id, linkedPlan.carePlan.id);
+    const afterRestart = (await call(afterDeployment, '/api/clinic/patients/' + id, undefined, authCookie)).data;
+    assert.equal(afterRestart.review.confirmed.id, linkedPlan.carePlan.id);
+    assert.equal(afterRestart.ai.draft.id, aiWitness.id);
     assert.equal((await call(afterDeployment, '/api/clinic/logout', {}, authCookie)).status, 200);
     assert.equal((await call(afterDeployment, '/api/clinic/patients', undefined, authCookie)).status, 401);
   } finally {
     await stop(); await first.close(); await second.close();
     const url = new URL(databaseUrl);
     for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslnegotiation']) url.searchParams.delete(key);
-    const cleanup = new pg.Pool({ connectionString: url.toString(), ssl: { rejectUnauthorized: true } });
+    const cleanup = new pg.Pool({ connectionString: url.toString(), ssl: { rejectUnauthorized: true }, connectionTimeoutMillis: 12000, query_timeout: 12000 });
     try { await cleanup.query('DELETE FROM demo_telegram_chats WHERE session_id = $1', [row]); await cleanup.query('DELETE FROM demo_clinician_workspaces WHERE owner_id = ANY($1::text[])', [[owner, `clinic:${owner}`, ...authOwners]]); await cleanup.query('DELETE FROM demo_sessions WHERE id = ANY($1::text[])', [[owner, row]]); }
     finally { await cleanup.end(); }
   }
