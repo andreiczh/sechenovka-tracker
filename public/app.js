@@ -1,3 +1,4 @@
+import { startViewport, revealViewportElement } from './shared/viewport.js';
 import { appConfig } from './config.js';
 import { checklistGroups, safetyItems, clinicalSources, evaluateChecklist } from './clinical-data.js';
 
@@ -9,15 +10,15 @@ let toastTimer;
 
 function renderChecklist() {
   byId('checklist-groups').innerHTML = checklistGroups.map(group => `
-    <fieldset class="checklist-group">
-      <legend>${group.title}</legend>
+    <div class="checklist-group" role="group" aria-labelledby="${group.id}-title">
+      <h3 class="group-title" id="${group.id}-title">${group.title}</h3>
       <div class="checklist-items">${group.items.map(item => `
-        <label class="check-item" for="${item.id}">
+        <div class="check-option"><label class="check-item" for="${item.id}" title="${item.description}">
           <input type="checkbox" id="${item.id}" name="observation" value="${item.id}" aria-describedby="${item.id}-description">
           <span><strong>${item.title}</strong><span class="item-description" id="${item.id}-description">${item.description}</span></span>
-        </label>`).join('')}
+        </label><button class="item-info" type="button" data-info="${item.id}" aria-label="Подробнее: ${item.title}">i</button></div>`).join('')}
       </div>
-    </fieldset>`).join('');
+    </div>`).join('');
 
   byId('safety-items').innerHTML = safetyItems.map(item => `
     <label class="safety-item" for="${item.id}">
@@ -29,6 +30,9 @@ function renderChecklist() {
 function updateSelection() {
   const result = evaluateChecklist(selected, selectedSafety, appConfig.checklistThreshold);
   byId('selected-count').textContent = String(result.count);
+  byId('compact-count').textContent = `${result.count} / ${result.total}`;
+  byId('compact-screening').disabled = !result.thresholdReached;
+  byId('compact-safety').classList.toggle('safety-active', result.safetyConcern);
   byId('count-progress').setAttribute('aria-valuenow', String(result.count));
   byId('count-progress').querySelector('span').style.width = `${result.fraction * 100}%`;
   byId('screening-button').disabled = !result.thresholdReached;
@@ -121,6 +125,8 @@ function setupDialogs() {
     <a class="source-item" href="${source.url}" target="_blank" rel="noopener noreferrer">
       <strong>${source.title} ↗</strong><span>${source.organization}</span>
     </a>`).join('');
+  byId('bot-help-button').addEventListener('click', () => byId('bot-help-dialog').showModal());
+  byId('guide-button').addEventListener('click', () => byId('guide-dialog').showModal());
   byId('sources-button').addEventListener('click', () => byId('sources-dialog').showModal());
   for (const button of document.querySelectorAll('[data-close]')) {
     button.addEventListener('click', () => byId(button.dataset.close).close());
@@ -196,3 +202,10 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
     });
   });
 }
+
+startViewport({ mainSelector: '#checklist-view:not([hidden]), #patient-view:not([hidden])', watchSelector: 'main', skip: el => el.id === 'checklist-view' && innerWidth >= 1000 && innerHeight >= 620 });
+
+byId('compact-screening').addEventListener('click', navigateToPatient);
+byId('compact-safety').addEventListener('click', () => revealViewportElement(byId('safety-section')));
+
+byId('checklist-groups').addEventListener('click', event => { const id = event.target.closest('[data-info]')?.dataset.info; if (!id) return; const item = checklistGroups.flatMap(g => g.items).find(i => i.id === id); if (!item) return; byId('observation-title').textContent = item.title; byId('observation-description').textContent = item.description; byId('observation-dialog').showModal(); });

@@ -16,8 +16,9 @@
   <link rel="stylesheet" href="/styles.css">
   <script defer src="/vendor/qrcode.js"></script>
   <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/shared/viewport.css">
 </head>
-<body>
+<body class="vop-page">
   <a class="skip-link" href="#main">К содержанию</a>
   <header class="site-header wrap">
     <a class="brand" href="#checklist" aria-label="Трекер Сеченовка — к памятке">
@@ -35,10 +36,11 @@
     <section id="checklist-view" aria-labelledby="page-title">
       <div class="intro">
         <p class="eyebrow"><span class="short-line" aria-hidden="true"></span>Для врача общей практики · 18+</p>
-        <h1 id="page-title">Когда стоит предложить<br class="desktop-break"> скрининг самочувствия</h1>
-        <p class="intro-text">Отметьте то, что заметили на приёме или уточнили у пациента.<br class="desktop-break"> Памятка помогает подготовить разговор о тревоге и настроении.</p>
+        <h1 id="page-title">Когда предложить скрининг самочувствия</h1>
+        <p class="intro-text">Отметьте жалобы, уточните длительность и влияние на жизнь. Отдельно проверьте безопасность.</p>
       </div>
 
+      <div class="compact-actions"><strong id="compact-count">0 / 10</strong><button id="compact-safety" type="button">Безопасность</button><button id="compact-screening" type="button" class="button button-primary" disabled>Нужен тест →</button></div>
       <div class="workspace">
         <div class="checklist-main">
           <div class="section-topline">
@@ -48,16 +50,9 @@
           <p class="section-description">Уточните начало, длительность и изменения относительно привычного состояния.</p>
           <div id="checklist-groups" class="checklist-columns"></div>
 
-          <section id="safety-section" class="safety-section" aria-labelledby="safety-title">
-            <div class="safety-heading"><span class="attention-mark" aria-hidden="true">!</span><div><h2 id="safety-title">Проверьте отдельно</h2><p>Эти признаки важны при любом количестве отметок выше.</p></div></div>
-            <div id="safety-items"></div>
-            <div id="safety-notice" class="safety-notice" role="status" hidden>
-              <strong>Сначала — оценка безопасности</strong>
-              <p>Организуйте необходимую клиническую помощь по локальному маршруту. При непосредственной опасности не оставляйте пациента без помощи. Скрининг не должен откладывать эти действия.</p>
-            </div>
-          </section>
 
-          <div class="context-note"><span aria-hidden="true">↳</span><p>Учитывайте соматические заболевания, лекарства, алкоголь и другие вещества, прошлые эпизоды и влияние симптомов на жизнь.</p></div>
+
+
         </div>
 
         <aside class="decision-panel" aria-labelledby="decision-title">
@@ -72,21 +67,22 @@
           <button id="manual-screening-button" class="manual-button" type="button">Перейти по решению врача</button>
           <div class="demo-rule"><span class="rule-label">О пороге</span><p>6 из 10 — условие этого прототипа. Это не диагностический порог и не вероятность расстройства.</p></div>
         </aside>
+          <section id="safety-section" class="safety-section" aria-labelledby="safety-title">
+            <div class="safety-heading"><span class="attention-mark" aria-hidden="true">!</span><div><h2 id="safety-title">Безопасность · проверить отдельно</h2><p>При любом количестве отметок.</p></div></div>
+            <div id="safety-items"></div>
+            <div id="safety-notice" class="safety-notice" role="status" hidden>
+              <strong>Сначала — оценка безопасности</strong>
+              <p>Организуйте необходимую клиническую помощь по локальному маршруту. При непосредственной опасности не оставляйте пациента без помощи. Скрининг не должен откладывать эти действия.</p>
+            </div>
+          </section>
       </div>
 
-      <section class="how-it-works" aria-labelledby="how-title">
-        <p class="eyebrow" id="how-title">Дальше — по шагам</p>
-        <ol>
-          <li><span>1</span><div><h3>Объясните пользу</h3><p>Свяжите предложение с жалобой пациента.</p></div></li>
-          <li><span>2</span><div><h3>Передайте ссылку</h3><p>Покажите QR или откройте бота вместе.</p></div></li>
-          <li><span>3</span><div><h3>Согласуйте контакт</h3><p>Объясните, когда и с кем обсудить результаты.</p></div></li>
-        </ol>
-      </section>
+
     </section>
 
     <section id="patient-view" aria-labelledby="patient-title" hidden>
       <button id="back-button" class="back-button" type="button"><span aria-hidden="true">←</span>К памятке</button>
-      <div class="intro patient-intro"><p class="eyebrow"><span class="short-line" aria-hidden="true"></span>Передача пациенту</p><h1 id="patient-title">Как предложить пациенту<br>скрининг самочувствия</h1><p class="intro-text">Объясните, зачем нужна оценка, покажите ссылку<br class="desktop-break"> и договоритесь, что будет после заполнения.</p></div>
+      <div class="intro patient-intro"><p class="eyebrow"><span class="short-line" aria-hidden="true"></span>Передача пациенту</p><h1 id="patient-title">Предложить скрининг пациенту</h1><p class="intro-text">Объясните, зачем нужна оценка, покажите ссылку<br class="desktop-break"> и договоритесь, что будет после заполнения.</p></div>
       <div id="handoff-safety" class="handoff-safety" role="status" hidden><span class="attention-mark" aria-hidden="true">!</span><p><strong>Отмечен признак, требующий отдельной оценки.</strong> Передача ссылки не заменяет необходимую клиническую помощь и не должна её откладывать.</p></div>
 
       <div class="handoff-layout">
@@ -103,13 +99,23 @@
           <div class="visit-note"><h3>Перед завершением приёма</h3><p>Уточните, к кому и когда обратиться с результатами, как получить помощь раньше и что делать, если заполнить анкету не получится.</p></div>
         </div>
 
-        <aside class="bot-panel" aria-labelledby="bot-panel-title"><p class="eyebrow">Ссылка для пациента</p><h2 id="bot-panel-title">Трекер Сеченовка</h2><p class="bot-subtitle">Откройте в Telegram</p><div id="qr-code" class="qr-code" role="img" aria-label="QR-код: открыть бота Трекер Сеченовка в Telegram"></div><p class="qr-caption">Наведите камеру телефона</p><a id="open-bot-button" class="button button-primary" href="https://t.me/sechenov_track_bot" target="_blank" rel="noopener noreferrer">Открыть бота <span aria-hidden="true">↗</span></a><div class="link-field"><span id="bot-username">@sechenov_track_bot</span><button id="copy-link-button" type="button" aria-label="Скопировать ссылку на бота"><span class="copy-symbol" aria-hidden="true">▢</span></button></div><p id="copy-link-status" class="copy-status" aria-live="polite"></p><div class="bot-stage-note"><span class="status-dot" aria-hidden="true"></span><p>В боте нажмите «Старт». Можно отвечать кнопками в переписке или открыть дневник через меню бота. Для демонстрации используйте вымышленные данные.</p></div><a class="text-button" href="/patient/">Открыть Mini App →</a><p class="bot-footnote">Записи не являются каналом экстренной помощи. Прохождение добровольное.</p></aside>
+        <aside class="bot-panel" aria-labelledby="bot-panel-title"><p class="eyebrow">Ссылка для пациента</p><h2 id="bot-panel-title">Трекер Сеченовка</h2><p class="bot-subtitle">Откройте в Telegram</p><div id="qr-code" class="qr-code" role="img" aria-label="QR-код: открыть бота Трекер Сеченовка в Telegram"></div><p class="qr-caption">Наведите камеру телефона</p><a id="open-bot-button" class="button button-primary" href="https://t.me/sechenov_track_bot" target="_blank" rel="noopener noreferrer">Открыть бота <span aria-hidden="true">↗</span></a><div class="link-field"><span id="bot-username">@sechenov_track_bot</span><button id="copy-link-button" type="button" aria-label="Скопировать ссылку на бота"><span class="copy-symbol" aria-hidden="true">▢</span></button></div><p id="copy-link-status" class="copy-status" aria-live="polite"></p><div class="bot-links"><button id="bot-help-button" class="text-button" type="button">Как пользоваться</button><a class="text-button bot-miniapp-link" href="/patient/">Открыть Mini App →</a></div><p class="bot-footnote">Не для экстренной помощи.</p></aside>
       </div>
     </section>
   </main>
 
-  <footer class="site-footer wrap"><div><span>Трекер Сеченовка</span><p>Памятка для взрослых 18+. Клиническое решение принимает врач.</p></div><div class="footer-actions"><button id="sources-button" class="text-button" type="button">Источники и ограничения <span aria-hidden="true">↗</span></button><button id="install-button" class="text-button" type="button">На главный экран <span aria-hidden="true">↗</span></button></div><p class="storage-note">Отметки не сохраняются и никуда не отправляются.</p></footer>
+  <footer class="site-footer wrap"><div><span>Трекер Сеченовка</span><p>Памятка для взрослых 18+. Клиническое решение принимает врач.</p></div><div class="footer-actions"><button id="guide-button" class="text-button" type="button">Порядок действий</button><a class="text-button" href="/psychiatrist/">Кабинет психиатра ↗</a><button id="sources-button" class="text-button" type="button">Источники и ограничения <span aria-hidden="true">↗</span></button><button id="install-button" class="text-button" type="button">На главный экран <span aria-hidden="true">↗</span></button></div><p class="storage-note">Отметки не сохраняются и никуда не отправляются.</p></footer>
 
+  <dialog id="bot-help-dialog" class="info-dialog" aria-labelledby="bot-help-title"><div class="dialog-header"><h2 id="bot-help-title">Как работает дневник</h2><button class="dialog-close" type="button" data-close="bot-help-dialog" aria-label="Закрыть инструкцию по дневнику">×</button></div><p>В боте нажмите «Старт». Можно отвечать кнопками в переписке или открыть дневник через меню бота.</p><p>Для передачи результатов в учебный кабинет пациент отдельно даёт согласие: /doctor → /share в боте или «К приёму» в Mini App.</p><p>Для демонстрации используйте вымышленные сведения. Записи не являются каналом экстренной помощи, врач не наблюдает за ними постоянно. Прохождение добровольное.</p><a class="button button-primary" href="/patient/">Открыть Mini App</a></dialog>
+  <dialog id="observation-dialog" class="info-dialog" aria-labelledby="observation-title"><div class="dialog-header"><h2 id="observation-title">Наблюдение</h2><button class="dialog-close" type="button" data-close="observation-dialog" aria-label="Закрыть описание">×</button></div><p id="observation-description"></p><p>Уточните длительность и изменение относительно обычного состояния пациента.</p></dialog>
+  <dialog id="guide-dialog" class="info-dialog" aria-labelledby="guide-title"><div class="dialog-header"><h2 id="guide-title">Порядок действий</h2><button class="dialog-close" type="button" data-close="guide-dialog" aria-label="Закрыть порядок действий">×</button></div>      <section class="how-it-works" aria-labelledby="how-title">
+        <p class="eyebrow" id="how-title">Дальше — по шагам</p>
+        <ol>
+          <li><span>1</span><div><h3>Объясните пользу</h3><p>Свяжите предложение с жалобой пациента.</p></div></li>
+          <li><span>2</span><div><h3>Передайте ссылку</h3><p>Покажите QR или откройте бота вместе.</p></div></li>
+          <li><span>3</span><div><h3>Согласуйте контакт</h3><p>Объясните, когда и с кем обсудить результаты.</p></div></li>
+        </ol>
+      </section>          <div class="context-note"><span aria-hidden="true">↳</span><p>Учитывайте соматические заболевания, лекарства, алкоголь и другие вещества, прошлые эпизоды и влияние симптомов на жизнь.</p></div></dialog>
   <dialog id="sources-dialog" class="info-dialog" aria-labelledby="sources-title"><div class="dialog-header"><p class="eyebrow">Основания памятки</p><button class="dialog-close" type="button" data-close="sources-dialog" aria-label="Закрыть источники">×</button></div><h2 id="sources-title">Источники и ограничения</h2><p>Пункты помогают обратить внимание на жалобы. Этот список не является PHQ-9, GAD-7 или другим валидированным опросником.</p><div class="dialog-highlight"><strong>Почему 6 из 10?</strong><p>Это выбранный для демонстрации порог интерфейса — 60% отметок. Он не установлен клиническими рекомендациями и не оценивает вероятность заболевания. Даже одной значимой жалобы может быть достаточно для дальнейшей оценки.</p></div><div id="sources-list" class="sources-list"></div><p class="dialog-footnote">Профессиональные источники не подтверждают валидность авторского чек-листа. Перед клиническим применением требуется экспертная проверка. Дата сверки материалов: 23.10.2026.</p></dialog>
   <dialog id="install-dialog" class="info-dialog" aria-labelledby="install-title"><div class="dialog-header"><p class="eyebrow">Быстрый доступ</p><button class="dialog-close" type="button" data-close="install-dialog" aria-label="Закрыть инструкцию">×</button></div><h2 id="install-title">Добавить на главный экран</h2><p id="install-instructions">Откройте меню браузера и выберите «Установить приложение» или «На экран “Домой”», если действие доступно.</p><p class="dialog-footnote">Для установки на телефон сайт должен открываться по HTTPS. Локальная версия работает на этом компьютере. Памятка доступна офлайн после первого открытия; переход в Telegram требует сети.</p></dialog>
   <div id="toast" class="toast" role="status" hidden></div>

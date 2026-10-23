@@ -1,0 +1,301 @@
+/* One-screen application frame. Long views use pages, never tiny text. */
+[data-viewport-hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.viewport-transparent{display:contents!important}
+.viewport-paragraph{display:block;white-space:pre-wrap;overflow-wrap:anywhere}
+.viewport-workspace{display:flex!important;flex-direction:column;min-height:0!important;gap:10px}
+.viewport-head{flex:none;min-width:0}
+.viewport-content{flex:1;min-height:0;min-width:0;overflow:hidden;position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:start;gap:12px}
+.viewport-single>.viewport-content{display:block}
+.viewport-content>.notice,.viewport-content>.row,.viewport-content>p,.viewport-content>.stat-strip,.viewport-content>.toolbar,.viewport-content>.tab-switch,.viewport-content>.summary-actions{grid-column:1/-1}
+.viewport-content .roster-card,.viewport-content .welcome,.viewport-content #review-card,.viewport-content .card:has(.chart),.viewport-content .card:has(.data-table),.viewport-content .card:has(.answer-table),.viewport-content .card:has(.calendar-grid),.viewport-content .card:has(pre){grid-column:1/-1}
+.viewport-content>.card,.viewport-content .card{margin-bottom:10px}
+.viewport-content .section-gap{margin-top:10px}
+.viewport-controls{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex:none;height:35px;border-top:1px solid var(--line,#e3e8e4);padding-top:5px;color:var(--muted,#65716a);font-size:11px}
+.viewport-controls button{width:33px;height:29px;min-height:29px;border:1px solid var(--line,#e3e8e4);border-radius:7px;background:white;color:var(--green,#456e5a);font-size:16px;padding:0}
+.viewport-controls button:disabled{opacity:.35;cursor:default}
+.viewport-controls label{min-width:0;max-width:min(420px,70%);margin:0}
+.viewport-controls select{font:inherit;font-size:11px;padding:4px 24px 4px 9px;border:1px solid var(--line,#e3e8e4);border-radius:7px;min-height:29px;height:29px;width:100%;color:var(--ink,#27362f);background:white}
+.viewport-count{font-variant-numeric:tabular-nums;white-space:nowrap}
+.viewport-footer{flex:none}
+.viewport-overflow>.viewport-content,.viewport-fallback{overflow:auto!important}
+.viewport-workspace .page-heading{margin:0 0 6px;gap:8px}
+.viewport-workspace .page-heading h1{font-size:25px;line-height:1.2;letter-spacing:-.7px}
+.viewport-workspace .page-heading p{font-size:11px;margin-top:6px;line-height:1.5}
+.viewport-workspace .page-heading .eyebrow{font-size:9px;margin-bottom:5px}
+.viewport-workspace .card{padding:18px 20px;border-radius:12px}
+.viewport-workspace .card h2{font-size:17px}
+.viewport-workspace .card p{line-height:1.6}
+.viewport-workspace .card-header,.viewport-workspace .card-head{margin-bottom:12px}
+.viewport-workspace textarea{min-height:74px;max-height:125px;resize:none}
+.viewport-workspace .form-field{gap:5px;margin-bottom:12px}
+.viewport-workspace .form-row{gap:14px}
+.viewport-workspace .chart{max-height:200px;object-fit:contain}
+.viewport-workspace .welcome img.welcome-cover{width:100%;height:72px;max-height:72px;object-fit:cover;object-position:center 25%;border-radius:8px;margin-bottom:12px}
+.viewport-workspace .welcome-top>img{width:64px;height:64px}
+.viewport-workspace .welcome h2{font-size:23px}
+.viewport-workspace .welcome-steps{margin:13px 0;padding:13px 0;gap:15px}
+.viewport-workspace .welcome-steps p{font-size:11px}
+.viewport-workspace .notice{padding:12px 15px;font-size:11px}
+.viewport-workspace .question-top{margin:0 0 10px}
+.viewport-workspace .progress-track{margin-bottom:14px}
+.viewport-workspace .question-card h1{font-size:22px;margin-bottom:14px;line-height:1.4}
+.viewport-workspace .question-window{margin-bottom:10px}
+.viewport-workspace .question-instruction{margin-bottom:12px}
+.viewport-workspace .answer-button{padding:11px 14px;min-height:44px}
+.viewport-workspace .option-list{gap:7px}
+.viewport-workspace .question-actions{margin-top:12px}
+.viewport-workspace .question-footnote{margin-top:10px}
+.viewport-workspace .footer-note{padding-top:5px;margin:0;font-size:9px;display:flex;justify-content:space-between;gap:10px;line-height:1.4;border:0}
+.viewport-workspace .footer-note br{display:none}
+.viewport-workspace .footer-note button{font-size:9px;margin:0;white-space:nowrap}
+body:has(.main-shell){height:100dvh;overflow:hidden}
+body:has(.main-shell) #app,body:has(.main-shell) .shell{height:100%;min-height:0}
+.main-shell{height:100dvh;display:flex;flex-direction:column;min-height:0}
+.topbar{height:48px!important;min-height:48px!important;padding:0 24px!important;position:static!important;flex:none}
+.topbar-right{gap:10px}
+.topbar .button{font-size:10px;min-height:28px;padding:5px 10px}
+.topbar .mobile-brand img{width:27px;height:27px}
+.main-shell>.main{padding:16px 24px 10px!important;flex:1;min-height:0;overflow:hidden;max-width:none;width:100%}
+.sidebar{padding:19px 14px 12px!important;width:200px!important;height:100dvh;min-height:0}
+.main-shell{margin-left:200px!important}
+.sidebar .brand{font-size:12px;gap:7px;margin-bottom:20px}
+.sidebar .brand img{width:34px;height:34px}
+.sidebar .brand small{font-size:9px}
+.sidebar .nav a{padding:10px 11px;font-size:11px;gap:9px}
+.sidebar .side-caption{margin-top:17px}
+.sidebar .side-info{font-size:9px;line-height:1.6}
+.sidebar .side-links a,.sidebar .side-links button{font-size:10px}
+.sidebar .demo-profile{padding-top:12px}
+.viewport-workspace .lead-row{margin-bottom:8px}
+.viewport-workspace .patient-heading{margin:5px 0 7px}
+.viewport-workspace .patient-heading h1{font-size:23px}
+.viewport-workspace .patient-heading .patient-avatar{width:39px;height:39px;font-size:14px}
+.viewport-workspace .detail-back{font-size:10px;margin-bottom:3px;padding:0;min-height:18px;height:18px}
+.viewport-workspace .sync-line{font-size:9px;margin:0 0 5px;padding:1px 0;line-height:1.5;min-height:16px}
+.viewport-workspace .detail-tabs{margin:0 0 4px;padding-bottom:0}
+.viewport-workspace .detail-tabs a{font-size:10px;padding:6px 12px;min-height:30px}
+.viewport-workspace .doctor-form{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px}
+.viewport-workspace .doctor-form>.form-section,.viewport-workspace .doctor-form>.form-row,.viewport-workspace .doctor-form>p,.viewport-workspace .doctor-form>.row{grid-column:1/-1}
+.viewport-workspace .doctor-form .form-field{margin:0}
+.viewport-workspace .doctor-form .private-label{font-size:9px}
+.viewport-workspace .doctor-form textarea{min-height:68px}
+.viewport-workspace .roster td{padding:11px 9px}
+.viewport-workspace .stat-strip{gap:10px;margin:4px 0 10px}
+.viewport-workspace .stat-tile{padding:12px 15px}
+.viewport-workspace .stat-tile strong{font-size:25px}
+.viewport-workspace .toolbar{gap:12px;margin-bottom:12px}
+.clinic-login{height:100dvh;max-width:510px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;gap:22px;padding:25px}
+.clinic-login .card{padding:27px}
+.clinic-login h1{font-size:27px;margin:10px 0 13px}
+.clinic-login p{font-size:12px;line-height:1.7;margin:14px 0}
+.clinic-login input{padding:12px 13px;border:1px solid var(--line);border-radius:8px;width:100%;font:inherit}
+.clinic-login #login-error:empty{display:none}
+dialog.viewport-workspace[open]{height:min(700px,92dvh);max-height:92dvh;overflow:hidden;gap:10px;display:flex!important;padding:22px!important}
+dialog.viewport-workspace:not([open]){display:none!important}
+dialog.viewport-workspace h2{font-size:21px}
+dialog.viewport-workspace .modal-head,dialog.viewport-workspace .dialog-header{margin-bottom:0}
+@media(max-width:700px){
+  .viewport-content{display:block}
+  .main-shell{margin-left:0!important;height:calc(100dvh - 65px - env(safe-area-inset-bottom))}
+  .clinician-app .main-shell{height:100dvh}
+  .main-shell>.main{padding:12px 14px 7px!important}
+  .topbar{height:44px!important;min-height:44px!important;padding:0 14px!important}
+  .topbar .mobile-brand{font-size:11px}
+  .viewport-workspace .page-heading h1{font-size:21px}
+  .viewport-workspace .page-heading p{font-size:10px}
+  .viewport-workspace .card{padding:15px 16px}
+  .viewport-workspace .welcome-steps{display:grid;grid-template-columns:1fr;gap:10px}
+  .viewport-workspace .welcome-cover{max-height:80px}
+  .viewport-workspace .welcome h2{font-size:20px}
+  .viewport-workspace .question-card h1{font-size:19px}
+  .viewport-workspace .question-footnote{font-size:9px}
+  .viewport-workspace .answer-button{font-size:11px;min-height:43px}
+  .viewport-workspace .footer-note>span{font-size:8px;max-width:78%}
+  .viewport-controls{height:35px;gap:6px}
+  .viewport-controls select{font-size:10px}
+  .viewport-workspace .patient-heading{display:block}
+  .viewport-workspace .patient-heading>.row{margin-top:7px;gap:7px}
+  .viewport-workspace .patient-heading .button{min-height:30px;padding:6px 9px;font-size:10px}
+  .viewport-workspace .detail-tabs{display:grid;grid-template-columns:repeat(3,1fr);overflow:visible}
+  .viewport-workspace .detail-tabs a{padding:7px 5px;font-size:9px;justify-content:center}
+  .viewport-workspace .sync-line{font-size:8px;gap:5px}
+  .viewport-workspace .roster tr{padding:8px 9px}
+  .viewport-workspace .roster td{padding:6px 3px;font-size:10px}
+  .viewport-workspace .roster .subtle-label{font-size:9px;line-height:1.45}
+  .viewport-workspace .roster .flag{font-size:9px;line-height:1.4;padding:5px 7px}
+  .viewport-workspace .roster-count{padding:10px 12px;font-size:9px}
+  .mobile-nav{height:65px;min-height:65px;padding:5px 6px calc(5px + env(safe-area-inset-bottom))}
+  .mobile-nav a{font-size:8px;gap:3px}
+  .clinic-login{padding:18px}
+  .clinic-login .card{padding:20px}
+}
+@media print{body:has(.main-shell),.main-shell{height:auto;overflow:visible}.main-shell>.main{overflow:visible}.viewport-workspace,.viewport-content{display:block!important;height:auto!important;overflow:visible!important}[data-viewport-hidden]{display:revert!important}.viewport-controls{display:none!important}}
+
+/* The GP's ten observations and safety checks stay together on one screen. */
+.compact-actions{display:none}
+.viewport-workspace .compact-actions{display:flex;align-items:center;gap:9px;border-block:1px solid var(--line);padding:7px 0;margin-bottom:6px;font-size:11px}
+.compact-actions strong{font-weight:500;font-variant-numeric:tabular-nums;margin-right:auto}
+.compact-actions button{font-size:10px;padding:6px 10px;background:var(--green-soft);border-radius:7px;min-height:32px}
+.compact-actions .button-primary{color:white;background:var(--green)}
+.compact-actions .button-primary:disabled{background:#e3eae4;color:#859589}
+.compact-actions .safety-active{color:var(--red);background:var(--red-soft)}
+.check-option{position:relative;min-height:0}
+.check-option .check-item{height:100%}
+.group-title{font-size:11px;color:var(--secondary);padding:0 0 9px;font-weight:500;letter-spacing:.015em;line-height:1.5;flex:none}
+.item-info{display:none}
+.vop-page{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.vop-page .site-header{flex:none}
+.vop-page main.wrap{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 0}
+.vop-page #checklist-view,.vop-page #patient-view{height:100%;min-height:0}
+.vop-page .site-footer{flex:none;padding:7px 0;gap:10px}
+.vop-page .site-footer .storage-note{display:none}
+.vop-page .site-footer>div:first-child{display:none}
+.vop-page .footer-actions{margin:0;width:100%;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.vop-page .footer-actions .text-button{font-size:9px;padding:3px 0;min-height:24px}
+.vop-page .viewport-head .intro h1{font-size:25px;margin:6px 0}
+.vop-page .viewport-head .intro{padding:0 0 8px}
+.vop-page .viewport-head .intro-text{font-size:11px}
+.vop-page .viewport-head .back-button{padding:0;font-size:10px;margin:0 0 6px}
+.vop-page .viewport-workspace .checklist-main{display:contents}
+.vop-page .viewport-workspace .checklist-columns{display:contents}
+.vop-page .viewport-workspace .check-item{min-height:48px;padding:10px 12px}
+.vop-page .viewport-workspace .section-description{padding:0;margin:4px 0 8px}
+.vop-page .viewport-workspace .safety-section{margin-top:10px}
+.vop-page .viewport-workspace .decision-panel{position:static}
+.viewport-with-side{display:grid!important;grid-template-columns:minmax(0,1fr) 275px;grid-template-rows:auto minmax(0,1fr) 35px auto;grid-template-areas:'head head' 'content side' 'controls side' 'footer footer';column-gap:24px}
+.viewport-with-side>.viewport-head{grid-area:head}
+.viewport-with-side>.viewport-content{grid-area:content}
+.viewport-with-side>.viewport-controls{grid-area:controls}
+.viewport-with-side>.viewport-footer{grid-area:footer}
+.viewport-with-side>.bot-panel{grid-area:side;min-height:0;position:static}
+.viewport-with-side .bot-panel .bot-subtitle,.viewport-with-side .bot-panel .qr-caption{font-size:9px}
+.viewport-with-side .bot-panel .bot-stage-note{font-size:9px}
+.viewport-with-side .bot-panel .bot-footnote{font-size:9px;margin-top:5px}
+.viewport-with-side .bot-panel .copy-status{height:15px}
+@media(min-width:1000px) and (min-height:620px){
+  .vop-page{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+  .vop-page .wrap{width:calc(100% - 64px);max-width:1500px}
+  .vop-page .site-header{height:55px;min-height:55px;gap:25px;flex:none}
+  .vop-page .brand{font-size:15px}
+  .vop-page .brand img{width:30px;height:30px}
+  .vop-page .header-nav{font-size:12px;gap:27px}
+  .vop-page main.wrap{flex:1;min-height:0;padding:14px 0 10px;display:flex;flex-direction:column}
+  #checklist-view,#patient-view{height:100%;min-height:0}
+  #checklist-view{display:flex;flex-direction:column;gap:12px}
+  .vop-page .intro{padding:0;flex:none}
+  .vop-page .intro .eyebrow{font-size:9px}
+  .vop-page .intro h1{font-size:28px;letter-spacing:-.8px;margin:6px 0;max-width:none;line-height:1.2}
+  .vop-page .intro-text{font-size:12px;line-height:1.5}
+  .vop-page .workspace{flex:1;min-height:0;grid-template-columns:minmax(0,1fr) 274px;grid-template-rows:minmax(0,1fr) auto;gap:12px 22px;align-items:stretch}
+  .vop-page .checklist-main{display:flex;flex-direction:column;min-height:0}
+  .vop-page .section-topline{height:25px;flex:none}
+  .vop-page .section-topline h2{font-size:14px}
+  .vop-page .section-description{font-size:11px;margin:1px 0 8px;padding-left:36px}
+  .vop-page .checklist-columns{flex:1;min-height:0;gap:12px}
+  .vop-page .checklist-group{display:flex;flex-direction:column;min-height:0}
+  .vop-page .group-title{font-size:10px;padding-bottom:6px}
+  .vop-page .checklist-group legend{font-size:10px;padding-bottom:6px}
+  .vop-page .checklist-items{flex:1;grid-template-rows:repeat(5,minmax(0,1fr));gap:6px}
+  .vop-page .check-item{min-height:0;padding:9px 11px;gap:10px;border-radius:9px;align-items:center}
+  .vop-page .check-item strong{font-size:12px;line-height:1.35}
+  .vop-page .check-item .item-description{font-size:11px;line-height:1.35;margin-top:3px}
+  .vop-page .check-item input{width:17px;height:17px;flex-basis:17px;margin:0}
+  .vop-page .decision-panel{position:static;padding:16px 18px;display:flex;flex-direction:column;min-height:0}
+  .vop-page .decision-panel h2{font-size:16px;margin-top:6px}
+  .vop-page .count-display{margin-top:10px;gap:7px}
+  .vop-page .count-display>#selected-count{font-size:49px}
+  .vop-page .count-caption{font-size:10px;margin-top:4px}
+  .vop-page .count-progress{margin:12px 0}
+  .vop-page .selection-summary{font-size:11px;min-height:35px;margin-bottom:10px;line-height:1.5}
+  .vop-page .decision-panel .button{min-height:40px;padding:8px 13px;font-size:12px}
+  .vop-page .button-hint{font-size:9px;margin-top:7px}
+  .vop-page .manual-button{margin:6px 0;min-height:26px;font-size:10px}
+  .vop-page .demo-rule{margin-top:auto;padding-top:9px;font-size:9px;line-height:1.5}
+  .vop-page .rule-label{font-size:9px;margin-bottom:3px}
+  .vop-page .safety-section{grid-column:1/-1;margin:0;padding:10px 13px;display:grid;grid-template-columns:220px 1fr;gap:6px 18px;align-items:center}
+  .vop-page .safety-heading{margin:0;gap:8px}
+  .vop-page .safety-heading h2{font-size:12px;line-height:1.4}
+  .vop-page .safety-heading p{font-size:9px;line-height:1.4;margin-top:3px}
+  .vop-page #safety-items{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .vop-page .safety-item{padding:0;gap:8px;border:0}
+  .vop-page .safety-item strong{font-size:10.5px;line-height:1.4}
+  .vop-page .safety-item .item-description{font-size:9.5px;line-height:1.4;margin-top:3px}
+  .vop-page .safety-notice{grid-column:1/-1;font-size:10px;padding:6px 0 0;margin:0;line-height:1.4}
+  .vop-page .safety-notice p{margin-top:2px;line-height:1.4}
+  .vop-page .site-footer{min-height:36px;flex:none;padding:7px 0;gap:16px;align-items:center;flex-wrap:nowrap}
+  .vop-page .site-footer>div:first-child{display:flex;gap:12px;align-items:center}
+  .vop-page .site-footer>div>span{font-size:10px}
+  .vop-page .site-footer>div>p{font-size:9px;margin:0}
+  .vop-page .footer-actions{gap:18px}
+  .vop-page .footer-actions .text-button{font-size:9px;padding:0;min-height:20px}
+  .vop-page .storage-note{font-size:8px;flex-basis:auto;padding:0;max-width:130px}
+  .vop-page .patient-intro{padding:0}
+  .vop-page .back-button{font-size:10px;padding:0;margin:0 0 8px}
+  .vop-page .bot-panel{position:static;padding:16px 20px}
+  .vop-page .bot-panel h2{font-size:19px;margin-top:7px}
+  .vop-page .qr-code{width:146px;height:146px;margin-top:13px}
+  .vop-page .qr-code svg{width:140px;height:140px}
+  .vop-page .qr-caption{margin:7px 0 12px;font-size:10px}
+  .vop-page .bot-stage-note{margin-top:8px;padding-top:9px;font-size:10px;line-height:1.5}
+  .vop-page .bot-footnote{margin-top:9px;font-size:10px}
+  .vop-page .doctor-script{font-size:17px;line-height:1.7;margin:16px 0;padding-left:16px}
+  .vop-page .benefit-grid{padding-bottom:14px;margin-bottom:14px}
+  .vop-page .objections summary{padding:11px 0}
+  .vop-page .visit-note{padding-top:13px}
+}
+@media(min-width:1000px) and (min-height:620px) and (max-height:699px){
+  .vop-page .check-item .item-description{display:none}
+  .vop-page .check-option .check-item{padding-right:31px}
+  .vop-page .item-info{display:grid;place-items:center;position:absolute;right:8px;top:calc(50% - 10px);width:20px;height:20px;border:1px solid #dce6de;background:#fff;color:var(--green);font-size:10px;border-radius:50%;padding:0}
+  .vop-page .intro h1{font-size:26px}
+  .vop-page .section-description{font-size:10px}
+  .vop-page .decision-panel{padding:12px 14px}
+  .vop-page .decision-panel>.eyebrow{display:none}
+  .vop-page .decision-panel h2{font-size:14px;margin:0}
+  .vop-page .count-display{margin-top:6px}
+  .vop-page .count-display>#selected-count{font-size:38px}
+  .vop-page .count-caption{font-size:9px;margin-top:1px}
+  .vop-page .count-progress{height:3px;margin:10px 0 8px}
+  .vop-page .selection-summary{font-size:10px;line-height:1.4;min-height:0;margin-bottom:8px}
+  .vop-page .decision-panel .button{min-height:34px;padding:7px 11px;font-size:11px}
+  .vop-page .button-hint{font-size:9px;margin-top:4px}
+  .vop-page .manual-button{min-height:22px;margin:5px 0;font-size:9px}
+  .vop-page .demo-rule{padding-top:6px;font-size:8.5px;line-height:1.35}
+  .vop-page .rule-label{display:none}
+}
+.bot-page{height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+.bot-page .bot-demo-bar{min-height:36px;height:36px;padding:6px 20px;flex:none}
+.bot-page .bot-layout{flex:1;min-height:0;padding:12px 24px;gap:40px}
+.bot-page .chat-window{height:100%;min-height:0;max-height:none}
+.bot-page .chat-header{min-height:51px;padding:8px 14px}
+.bot-page .chat-header>img{width:31px;height:31px}
+.bot-page .bot-explainer{padding:14px 0}
+.bot-page .bot-explainer h1{margin-top:30px;font-size:27px}
+@media(max-width:740px){.bot-page .bot-layout{padding:0;display:block}.bot-page .bot-demo-bar{height:35px;min-height:35px}.bot-page .chat-window{height:100%}}
+.bot-links{display:flex;align-items:center;justify-content:space-between;gap:8px}
+@media(min-width:1000px) and (min-height:620px){
+  .vop-page .viewport-with-side>.bot-panel{display:flex;flex-direction:column;gap:5px;padding:14px}
+  .vop-page .viewport-with-side>.bot-panel>*{margin:0;flex:none}
+  .vop-page .viewport-with-side .bot-panel .bot-subtitle{display:none}
+  .vop-page .viewport-with-side .bot-panel .qr-code{width:132px;height:132px;align-self:center;margin:3px auto}
+  .vop-page .viewport-with-side .bot-panel .qr-code svg{width:100%;height:100%}
+  .vop-page .viewport-with-side .bot-panel .qr-caption{text-align:center;font-size:9px}
+  .vop-page .viewport-with-side .bot-panel .button{min-height:38px;height:38px;padding:7px 10px;font-size:12px}
+  .vop-page .viewport-with-side .bot-panel .link-field{height:36px;min-height:36px}
+  .vop-page .viewport-with-side .bot-panel .link-field button{height:34px;width:32px}
+  .vop-page .viewport-with-side .bot-panel .copy-status{height:12px;padding:0;font-size:9px;line-height:1.3}
+  .vop-page .viewport-with-side .bot-links .text-button{font-size:9px;padding:3px 0;min-height:20px}
+  .vop-page .viewport-with-side .bot-panel .bot-footnote{font-size:9px;line-height:1.4}
+}
+@media(min-width:1000px) and (min-height:620px) and (max-height:699px){
+  .vop-page .viewport-with-side>.bot-panel{padding:10px;gap:4px}
+  .vop-page .viewport-with-side .bot-panel>.eyebrow{display:none}
+  .vop-page .viewport-with-side .bot-panel h2{font-size:16px;line-height:1.25}
+  .vop-page .viewport-with-side .bot-panel .qr-code{width:100px;height:100px;margin:2px auto}
+  .vop-page .viewport-with-side .bot-panel .button{min-height:34px;height:34px;font-size:11px}
+  .vop-page .viewport-with-side .bot-panel .link-field{height:32px;min-height:32px}
+  .vop-page .viewport-with-side .bot-panel .link-field button{height:30px}
+  .vop-page .viewport-with-side .bot-panel .copy-status{height:10px}
+  .vop-page .viewport-with-side .bot-miniapp-link{display:none}
+}

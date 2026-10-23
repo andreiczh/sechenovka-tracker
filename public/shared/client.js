@@ -4,7 +4,7 @@ export async function requestJSON(url, options = {}, timeoutMs = REQUEST_TIMEOUT
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const uncertain = options.method === 'POST';
-  const failure = (text, state) => Object.assign(new Error(text), { friendly: true, uncertain, state });
+  const failure = (text, state, status) => Object.assign(new Error(text), { friendly: true, uncertain, state, status });
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     let data;
@@ -13,7 +13,7 @@ export async function requestJSON(url, options = {}, timeoutMs = REQUEST_TIMEOUT
       if (controller.signal.aborted) throw error;
       throw failure('Сервер временно недоступен. Проверьте соединение и повторите действие.');
     }
-    if (!response.ok) throw failure(response.status < 500 && typeof data.error === 'string' ? data.error : 'Не удалось сохранить данные: сервер временно недоступен. Повторите действие.', data.state);
+    if (!response.ok) throw failure(response.status < 500 && typeof data.error === 'string' ? data.error : 'Сервер временно недоступен. Повторите действие.', data.state, response.status);
     return data;
   } catch (error) {
     if (error.friendly) throw error;

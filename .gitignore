@@ -8,3 +8,5 @@ coverage/
 dist/
 test-results/
 *.log
+
+public/__layout-test.*
