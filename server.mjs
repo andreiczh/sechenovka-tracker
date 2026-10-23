@@ -12,6 +12,9 @@ import { createClinicianWorkspace, clinicianList, clinicianListItem, clinicianPa
 import { connectedCase, isSharedPatient, clinicWorkspaceId, emptyClinicWorkspace } from './lib/care-link.mjs';
 import { createClinicianAuth } from './lib/clinician-auth.mjs';
 import { aiView, createAiSummaryService } from './lib/ai-summary.mjs';
+import { buildPatientSupport, selectedSupportStep, supportText } from './lib/insights.mjs';
+import { createPatientAiService, patientAiView, patientAiWorkspaceId, supportFingerprint } from './lib/patient-ai.mjs';
+import { saveTherapyContext } from './lib/therapy-support.mjs';
 import { createTelegram } from './lib/telegram.mjs';
 import { secretMatches, telegramSessionId, verifyTelegramInitData } from './lib/telegram-auth.mjs';
 
@@ -45,9 +48,10 @@ function authorizedJob(req, secret) {
 
 export function createAppServer({ config = readConfig(), storePath = config.storePath, storage = null, wallClock = () => Date.now(), logger = entry => console.error(JSON.stringify(entry)), telegramApi = null, aiFetch = undefined } = {}) {
   const store = storage || (config.databaseUrl ? createPostgresStore(config.databaseUrl) : createStore(storePath));
-  const telegram = config.telegramToken ? createTelegram({ config, store, wallClock, logger, callApi: telegramApi }) : null;
   const clinicianAuth = createClinicianAuth({ config, store, wallClock });
   const generateAiSummary = createAiSummaryService({ config, store, wallClock, logger, fetchImpl: aiFetch });
+  const generatePatientAi = createPatientAiService({ config, store, wallClock, logger, fetchImpl: aiFetch });
+  const telegram = config.telegramToken ? createTelegram({ config, store, wallClock, logger, callApi: telegramApi, generatePatientAi }) : null;
   async function tick() {
     let profiles = 0;
     for (const { id } of await store.all()) {
@@ -68,7 +72,10 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
     const chat = inTelegram ? await transaction.getTelegram(id) : null;
     const link = state.careConnection;
     const carePlan = link ? patientCarePlan(await transaction.getWorkspace(clinicWorkspaceId(id)), state, link.id) : patientCarePlan(!inTelegram && id ? await transaction.getWorkspace(id) : null, state);
-    return { ...snapshot(state, wallClock()), keyboard: botKeyboard(state, demoNow(state, wallClock())), carePlan, connection: { available: Boolean(config.clinicianAccessKey), enabled: Boolean(isSharedPatient(state)), code: link?.code || null, name: link?.name || '', connectedAt: link?.connectedAt || null }, telegram: { available: Boolean(telegram), authenticated: inTelegram, messagesEnabled: Boolean(chat && !chat.blocked), remindersScheduled: Boolean(telegram && config.scheduler === 'external'), username: config.telegramUsername || 'sechenov_track_bot' } };
+    const snap = snapshot(state, wallClock()), support = buildPatientSupport(snap, carePlan);
+    const aiSupport = patientAiView(await transaction.getWorkspace(patientAiWorkspaceId(id)), support, config, wallClock());
+    support.suggested = selectedSupportStep(support, !aiSupport.stale ? aiSupport.draft : null);
+    return { ...snap, support: { ...support, sourceHash: supportFingerprint(support) }, aiSupport, keyboard: botKeyboard(state, demoNow(state, wallClock())), carePlan, connection: { available: Boolean(config.clinicianAccessKey), enabled: Boolean(isSharedPatient(state)), code: link?.code || null, name: link?.name || '', connectedAt: link?.connectedAt || null }, telegram: { available: Boolean(telegram), authenticated: inTelegram, messagesEnabled: Boolean(chat && !chat.blocked), remindersScheduled: Boolean(telegram && config.scheduler === 'external'), username: config.telegramUsername || 'sechenov_track_bot' } };
   }
   const server = createServer(async (req, res) => {
     const requestId = randomUUID();
@@ -109,12 +116,12 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         if (!['GET', 'POST'].includes(req.method)) { fail(405, 'Метод не поддерживается', { Allow: 'GET, POST' }); return; }
         if (!acceptsOrigin(config, host, req.headers.origin) || req.headers['sec-fetch-site'] === 'cross-site') { fail(403, 'Запрос с другого сайта запрещён'); return; }
         if (req.method === 'POST' && (req.headers['x-demo-client'] !== '1' || !req.headers['content-type']?.startsWith('application/json'))) { fail(403, 'Требуется JSON-клиент приложения'); return; }
-        const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events))?)?$/.exec(pathname);
-        const clinicRoute = /^\/api\/clinic\/patients(?:\/(care-[a-f0-9-]{36})(?:\/(review|events|ai-summary))?)?$/.exec(pathname);
+        const doctorRoute = /^\/api\/clinician\/patients(?:\/([a-z0-9-]+)(?:\/(review|events|therapy-context))?)?$/.exec(pathname);
+        const clinicRoute = /^\/api\/clinic\/patients(?:\/(care-[a-f0-9-]{36})(?:\/(review|events|ai-summary|therapy-context))?)?$/.exec(pathname);
         const clinicSession = pathname === '/api/clinic/session';
         const clinicLogout = req.method === 'POST' && pathname === '/api/clinic/logout';
         const patientRouteAllowed = route => route && (req.method === 'GET' && !route[2] || req.method === 'POST' && route[1] && route[2]);
-        if (!(req.method === 'GET' && pathname === '/api/state' || req.method === 'POST' && pathname === '/api/action' || patientRouteAllowed(doctorRoute) || patientRouteAllowed(clinicRoute) || clinicSession || clinicLogout)) { fail(404, 'Метод не найден'); return; }
+        if (!(req.method === 'GET' && pathname === '/api/state' || req.method === 'POST' && ['/api/action', '/api/ai-support'].includes(pathname) || patientRouteAllowed(doctorRoute) || patientRouteAllowed(clinicRoute) || clinicSession || clinicLogout)) { fail(404, 'Метод не найден'); return; }
         const initData = req.headers['x-telegram-init-data'];
         const telegramLaunch = Boolean(initData || req.headers['x-telegram-launch'] === '1');
         let telegramIdentity;
@@ -173,9 +180,12 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
             if (!action || typeof action !== 'object' || Array.isArray(action)) throw new HttpError(400, 'Некорректное действие врача');
             if (clinicRoute[2] === 'events') {
               const patient = project();
-              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(409, 'Данные пациента изменились. Обновите карточку.');
+              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary', 'support'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(409, 'Данные пациента изменились. Обновите карточку.');
               workspace.audit.push({ id: randomUUID(), event: 'view-presented', patientId, view: action.view, sourceRevision: patient.sourceRevision, at: new Date(wallClock()).toISOString() });
               workspace.audit = workspace.audit.slice(-200);
+            } else if (clinicRoute[2] === 'therapy-context') {
+              const result = saveTherapyContext(workspace, project(), action, wallClock());
+              if (result.status !== 200) return { status: result.status, data: { error: result.error } };
             } else {
               const result = saveClinicalReview(workspace, patientId, state, action, wallClock(), entry);
               if (result.status !== 200) return { status: result.status, data: { error: result.error } };
@@ -188,6 +198,10 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         const cookieId = req.headers.cookie?.split(';').map(s => s.trim()).find(s => s.startsWith('sechenovka_demo='))?.slice('sechenovka_demo='.length);
         const id = telegramIdentity ? telegramSessionId(telegramIdentity.userId, config.telegramIdentitySecret) : cookieId && /^[a-f0-9-]{36}$/.test(cookieId) ? cookieId : randomUUID();
         const action = req.method === 'POST' ? await readJson(req) : null;
+        if (pathname === '/api/ai-support') {
+          const result = await generatePatientAi({ sessionId: id, action });
+          json(res, 200, result); return;
+        }
         const outcome = await store.withSession(id, async transaction => {
           const reply = (status, data, extra = {}) => ({ status, data, extra });
           let state = await transaction.get(id);
@@ -208,12 +222,12 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
             if (!patient) throw new HttpError(404, 'Пациент не найден в этом демонстрационном кабинете');
             if (!action || typeof action !== 'object' || Array.isArray(action)) throw new HttpError(400, 'Некорректное действие врача');
             if (doctorRoute[2] === 'events') {
-              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(400, 'Показ данных не подтверждён актуальной версией');
+              if (!['overview', 'assessments', 'diary', 'dynamics', 'plan', 'summary', 'support'].includes(action.view) || action.sourceRevision !== patient.sourceRevision) throw new HttpError(400, 'Показ данных не подтверждён актуальной версией');
               workspace.audit.push({ id: randomUUID(), event: 'view-presented', patientId, view: action.view, sourceRevision: patient.sourceRevision, at: new Date(wallClock()).toISOString() });
               workspace.audit = workspace.audit.slice(-200); await transaction.saveWorkspace(id, workspace);
               return reply(200, { ok: true }, extra);
             }
-            const result = saveClinicalReview(workspace, patientId, state, action, wallClock());
+            const result = doctorRoute[2] === 'therapy-context' ? saveTherapyContext(workspace, patient, action, wallClock()) : saveClinicalReview(workspace, patientId, state, action, wallClock());
             if (result.status !== 200) return reply(result.status, { error: result.error }, extra);
             await transaction.saveWorkspace(id, workspace);
             return reply(200, clinicianPatient(workspace, patientId, state, wallClock()), extra);
@@ -228,6 +242,11 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
             if (action.type === 'connect-doctor' && !config.clinicianAccessKey) throw new Error('Учебный кабинет пока не подключён');
             if (action.type === 'reset') state = { ...createPatient(wallClock()), careConnection: state.careConnection || null };
             else if (action.type === 'seed') state = { ...createHistory(wallClock()), careConnection: state.careConnection || null };
+            else if (action.type === 'bot' && typeof action.text === 'string' && ['/insights', '/ai', '/aiconsent'].includes(action.text.trim())) {
+              const current = await view(state, id, transaction), at = demoNow(state, wallClock());
+              const text = action.text.trim() === '/insights' ? supportText(current.support, !current.aiSupport.stale ? current.aiSupport.draft : null) : 'В браузерном симуляторе откройте «Мой разбор» в Mini App: там можно подтвердить обработку вымышленных данных и подготовить короткий ИИ-разбор. Здесь /insights покажет тот же сохранённый результат. В настоящем Telegram доступны /ai и /aiconsent.';
+              state.messages.push({ id: randomUUID(), role: 'user', text: action.text.trim(), at }, { id: randomUUID(), role: 'bot', text, at }); state.messages = state.messages.slice(-320); state.revision++;
+            }
             else state = applyAction(structuredClone(state), action, wallClock());
           } catch (error) { throw new HttpError(400, error.message); }
           if (['reset', 'seed'].includes(action.type)) state.revision = action.revision + 1;

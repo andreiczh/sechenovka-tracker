@@ -1,3 +1,4 @@
+import { buildVopConversation } from './shared/vop-support.js';
 import { startViewport, revealViewportElement } from './shared/viewport.js';
 import { appConfig } from './config.js';
 import { checklistGroups, safetyItems, clinicalSources, evaluateChecklist } from './clinical-data.js';
@@ -209,3 +210,7 @@ byId('compact-screening').addEventListener('click', navigateToPatient);
 byId('compact-safety').addEventListener('click', () => revealViewportElement(byId('safety-section')));
 
 byId('checklist-groups').addEventListener('click', event => { const id = event.target.closest('[data-info]')?.dataset.info; if (!id) return; const item = checklistGroups.flatMap(g => g.items).find(i => i.id === id); if (!item) return; byId('observation-title').textContent = item.title; byId('observation-description').textContent = item.description; byId('observation-dialog').showModal(); });
+
+byId('conversation-button').addEventListener('click',()=>{const items=checklistGroups.flatMap(g=>g.items).filter(i=>selected.has(i.id));const v=buildVopConversation(items,selectedSafety.size>0);byId('conversation-content').innerHTML=v.html;byId('conversation-copy').hidden=!v.script;byId('conversation-dialog').showModal();});
+byId('conversation-close').addEventListener('click',()=>byId('conversation-dialog').close());
+byId('conversation-copy').addEventListener('click',async()=>{const text=byId('conversation-script')?.textContent;if(text)showToast(await copyText(text)?'Объяснение скопировано':'Выделите текст и скопируйте его');});

@@ -1,6 +1,6 @@
-const CACHE = 'sechenovka-vop-v5';
+const CACHE = 'sechenovka-vop-v6';
 const PREFIX = 'sechenovka-vop-';
-const FILES = ['/', '/index.html', '/shared/viewport.js', '/shared/viewport.css', '/styles.css', '/app.js', '/config.js', '/clinical-data.js', '/vendor/qrcode.js', '/manifest.webmanifest', '/fonts/golos-text-cyrillic.woff2', '/fonts/golos-text-latin.woff2', '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png'];
+const FILES = ['/', '/index.html', '/shared/viewport.js', '/shared/vop-support.js', '/shared/support-ui.js', '/shared/evidence.js', '/shared/client.js', '/shared/telegram.js', '/shared/support.css', '/shared/viewport.css', '/styles.css', '/app.js', '/config.js', '/clinical-data.js', '/vendor/qrcode.js', '/manifest.webmanifest', '/fonts/golos-text-cyrillic.woff2', '/fonts/golos-text-latin.woff2', '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));

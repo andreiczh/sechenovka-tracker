@@ -29,6 +29,11 @@ test('F08: an unresponsive write is aborted, never automatically retried', async
   assert.equal(calls, 1);
 });
 
+test('a structured service failure preserves the explanation and ordinary fallback', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'ИИ-сервис временно недоступен. Обычный разбор доступен.' }, { status: 502 }));
+  await assert.rejects(requestJSON('/api/ai-support', { method: 'POST' }), e => e.status === 502 && /Обычный разбор доступен/.test(e.message));
+});
+
 test('F08: revision conflicts retain the server state, and a successful retry returns confirmed data', async t => {
   const state = { revision: 2, flow: { question: { id: 'phq-1' } } };
   t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'Данные изменились в другом окне', state }, { status: 409 }));

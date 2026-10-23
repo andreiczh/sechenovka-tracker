@@ -16,3 +16,5 @@
 .day-strip { grid-template-columns: repeat(auto-fit, minmax(22px, 1fr)); }
 
 .care-plan-fields{display:grid;gap:15px;margin:20px 0 0}.care-plan-fields dt{font-size:10px;color:var(--muted);margin-bottom:5px}.care-plan-fields dd{margin:0;font-size:12px;line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}
+
+@media(max-width:760px){.mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr))}.mobile-nav a{font-size:10px;padding-inline:2px}}

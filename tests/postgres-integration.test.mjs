@@ -6,9 +6,10 @@ import pg from 'pg';
 import { createPostgresStore } from '../lib/postgres-store.mjs';
 import { createAppServer } from '../server.mjs';
 import { readConfig } from '../lib/config.mjs';
+import { emptyTherapyContext } from '../lib/therapy-support.mjs';
 
 // Explicit opt-in: regular CI must never read or change the deployment database.
-test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient/doctor records', { skip: process.env.RUN_POSTGRES_TESTS !== '1' }, async () => {
+test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient/doctor records', { skip: process.env.RUN_POSTGRES_TESTS !== '1' }, async t => {
   const databaseUrl = process.env.DATABASE_URL;
   assert.ok(databaseUrl, 'DATABASE_URL is required for the opt-in integration check');
   const owner = randomUUID(), row = randomUUID();
@@ -74,7 +75,14 @@ test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient
     const linkedPlan = (await call(otherServer, '/api/state')).data;
     assert.equal(linkedPlan.carePlan.goal, values.goal);
     assert.doesNotMatch(JSON.stringify(linkedPlan), /INTEGRATION-PRIVATE|INTEGRATION-SAFETY/);
+    const health = await call(otherServer, '/api/action', { type: 'health-context', revision: linkedPlan.revision, values: { medicines: 'INTEGRATION-SELF-REPORT', conditions: '', previousTreatment: '', functionExample: '', activation: 'unknown' } });
+    assert.equal(health.status, 200);
     const source = (await call(otherServer, '/api/clinic/patients/' + id, undefined, authCookie)).data;
+    assert.equal(source.medications[0].name, 'INTEGRATION-SELF-REPORT');
+    const therapyValues = { ...emptyTherapyContext(), evidence: 'INTEGRATION-THERAPY-PRIVATE' };
+    const therapy = await call(otherServer, '/api/clinic/patients/' + id + '/therapy-context', { episodeId: source.episodeId, sourceRevision: source.sourceRevision, contextRevision: 0, values: therapyValues }, authCookie);
+    assert.equal(therapy.status, 200);
+    assert.doesNotMatch(JSON.stringify((await call(otherServer, '/api/state')).data), /INTEGRATION-THERAPY-PRIVATE/);
     const aiWitness = { id: 'AI-PG-DRAFT-' + owner, sourceRevision: source.sourceRevision, episodeId: source.episodeId, model: 'openai/gpt-oss-20b', promptVersion: 'visit-priorities-v1', generatedAt: new Date().toISOString(), highlights: [], questions: [], usage: { input: 100, output: 10 } };
     await first.withSession(owner, async transaction => {
       const workspace = await transaction.getWorkspace(`clinic:${owner}`);
@@ -88,8 +96,12 @@ test('PostgreSQL: verified TLS, rollback, concurrent servers and durable patient
     const afterRestart = (await call(afterDeployment, '/api/clinic/patients/' + id, undefined, authCookie)).data;
     assert.equal(afterRestart.review.confirmed.id, linkedPlan.carePlan.id);
     assert.equal(afterRestart.ai.draft.id, aiWitness.id);
+    assert.equal(afterRestart.therapy.context.evidence, 'INTEGRATION-THERAPY-PRIVATE');
+    assert.equal(afterRestart.therapy.stale, false);
+    assert.equal(afterRestart.medications[0].name, 'INTEGRATION-SELF-REPORT');
     assert.equal((await call(afterDeployment, '/api/clinic/logout', {}, authCookie)).status, 200);
     assert.equal((await call(afterDeployment, '/api/clinic/patients', undefined, authCookie)).status, 401);
+    t.diagnostic('All persistence, revision and access assertions passed; cleaning up owned fixtures.');
   } finally {
     await stop(); await first.close(); await second.close();
     const url = new URL(databaseUrl);

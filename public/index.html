@@ -17,6 +17,7 @@
   <script defer src="/vendor/qrcode.js"></script>
   <script type="module" src="/app.js"></script>
   <link rel="stylesheet" href="/shared/viewport.css">
+  <link rel="stylesheet" href="/shared/support.css">
 </head>
 <body class="vop-page">
   <a class="skip-link" href="#main">К содержанию</a>
@@ -65,7 +66,7 @@
           <button id="screening-button" type="button" class="button button-primary" disabled>Нужен тест <span aria-hidden="true">→</span></button>
           <p id="button-hint" class="button-hint">Кнопка активируется при 6 отметках.</p>
           <button id="manual-screening-button" class="manual-button" type="button">Перейти по решению врача</button>
-          <div class="demo-rule"><span class="rule-label">О пороге</span><p>6 из 10 — условие этого прототипа. Это не диагностический порог и не вероятность расстройства.</p></div>
+          <button id="conversation-button" class="manual-button" type="button">Помочь с беседой →</button><div class="demo-rule"><span class="rule-label">О пороге</span><p>6 из 10 — условие этого прототипа. Это не диагностический порог и не вероятность расстройства.</p></div>
         </aside>
           <section id="safety-section" class="safety-section" aria-labelledby="safety-title">
             <div class="safety-heading"><span class="attention-mark" aria-hidden="true">!</span><div><h2 id="safety-title">Безопасность · проверить отдельно</h2><p>При любом количестве отметок.</p></div></div>
@@ -120,5 +121,6 @@
   <dialog id="install-dialog" class="info-dialog" aria-labelledby="install-title"><div class="dialog-header"><p class="eyebrow">Быстрый доступ</p><button class="dialog-close" type="button" data-close="install-dialog" aria-label="Закрыть инструкцию">×</button></div><h2 id="install-title">Добавить на главный экран</h2><p id="install-instructions">Откройте меню браузера и выберите «Установить приложение» или «На экран “Домой”», если действие доступно.</p><p class="dialog-footnote">Для установки на телефон сайт должен открываться по HTTPS. Локальная версия работает на этом компьютере. Памятка доступна офлайн после первого открытия; переход в Telegram требует сети.</p></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <noscript><p class="noscript">Для работы чек-листа включите JavaScript. Бот доступен по адресу https://t.me/sechenov_track_bot.</p></noscript>
+<dialog id="conversation-dialog" class="info-dialog" aria-labelledby="conversation-title"><div class="dialog-header"><h2 id="conversation-title">Подсказка к беседе</h2><button type="button" id="conversation-close" class="dialog-close" aria-label="Закрыть">×</button></div><div id="conversation-content"></div><div class="row"><button id="conversation-copy" type="button" class="button button-primary">Скопировать объяснение</button></div></dialog>
 </body>
 </html>

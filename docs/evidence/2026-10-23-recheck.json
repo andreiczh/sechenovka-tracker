@@ -1,0 +1,35 @@
+[
+  {
+    "file": "kr-301_3.json",
+    "url": "https://apicr.minzdrav.gov.ru/api.ashx?op=GetClinrec2&id=301_3&ssid=",
+    "at": "2026-10-23T17:48:34.298636+00:00",
+    "sha256": "17449139d18db0550d82cea94c56a2965d3e57779f4b35d6652c9c581c706fec",
+    "same_as_prior": true,
+    "id": "301_3",
+    "version": 3,
+    "name": "Депрессивный эпизод, Рекуррентное депрессивное расстройство",
+    "apply_status": "Применяется",
+    "NPC_approved": true,
+    "publish_date": "2024-08-26T12:06:01.3"
+  },
+  {
+    "file": "kr-457_3.json",
+    "url": "https://apicr.minzdrav.gov.ru/api.ashx?op=GetClinrec2&id=457_3&ssid=",
+    "at": "2026-10-23T17:48:33.804617+00:00",
+    "sha256": "0366165680f465394ea5466c5c51d7e553517bdfcde1ce5c4572030ae7f8f10d",
+    "same_as_prior": true,
+    "id": "457_3",
+    "version": 3,
+    "name": "Генерализованное тревожное расстройство",
+    "apply_status": "Применяется",
+    "NPC_approved": true,
+    "publish_date": "2024-09-19T00:00:00"
+  },
+  {
+    "file": "aviandr-leaflet-grls-2026.pdf",
+    "url": "https://grls.rosminzdrav.ru/InstrImg/2026/07/29/1532717/94ba54dc-ce1c-40ed-96f4-5c3a31f13805.pdf",
+    "at": "2026-10-23T17:48:27.163376+00:00",
+    "sha256": "873f2962acbb84a3b5ac7cf92da1b5363fa204d29a7246b3f9818d0cce2a83dc",
+    "same_as_prior": true
+  }
+]

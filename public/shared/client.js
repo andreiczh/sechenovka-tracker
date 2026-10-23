@@ -13,7 +13,7 @@ export async function requestJSON(url, options = {}, timeoutMs = REQUEST_TIMEOUT
       if (controller.signal.aborted) throw error;
       throw failure('Сервер временно недоступен. Проверьте соединение и повторите действие.');
     }
-    if (!response.ok) throw failure(response.status < 500 && typeof data.error === 'string' ? data.error : 'Сервер временно недоступен. Повторите действие.', data.state, response.status);
+    if (!response.ok) throw failure(typeof data.error === 'string' && data.error.length <= 500 ? data.error : 'Сервер временно недоступен. Повторите действие.', data.state, response.status);
     return data;
   } catch (error) {
     if (error.friendly) throw error;
@@ -27,6 +27,9 @@ export async function getState() {
 }
 export async function sendAction(state, action) {
   return requestJSON('/api/action', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Client': '1', ...telegramHeaders() }, body: JSON.stringify({ ...action, revision: state.revision }) });
+}
+export async function generatePatientSupport(state) {
+  return requestJSON('/api/ai-support', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Client': '1', ...telegramHeaders() }, body: JSON.stringify({ consent: true, episodeId: state.episodeId, sourceHash: state.support.sourceHash }) }, 30000);
 }
 export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const dateLabel = date => date ? new Intl.DateTimeFormat('ru', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`)) : 'Не назначено';
