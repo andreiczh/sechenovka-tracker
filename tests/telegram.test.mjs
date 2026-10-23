@@ -123,6 +123,35 @@ test('a positive PHQ item 9 interrupts Telegram and does not count the safety cl
   assert.ok(f.calls.some(c => c.payload?.text?.includes('не подтверждает безопасность')));
 });
 
+test('after Mini App advances, a stale reply keyboard cannot answer a different question', async t => {
+  const f = await fixture(t); await f.send('/start'); await f.send('Мне 18+, начать');
+  assert.equal((await f.state()).flow.question.id, 'phq-0');
+  await f.action({ type: 'answer', questionId: 'phq-0', value: 2 });
+  assert.equal((await f.state()).flow.question.id, 'phq-1');
+  await f.send('0');
+  const protectedState = await f.state();
+  assert.equal(protectedState.flow.question.id, 'phq-1');
+  assert.equal(protectedState.active.values['phq-0'], 2);
+  assert.equal(protectedState.active.values['phq-1'], undefined);
+  assert.ok(f.calls.some(c => c.payload?.text?.includes('Этот ответ пока не сохранён')));
+  await f.send('1'); assert.equal((await f.state()).flow.question.id, 'phq-2');
+  await f.action({ type: 'answer', questionId: 'phq-2', value: 2 });
+  await f.send('Продолжить'); assert.equal((await f.state()).flow.question.id, 'phq-3');
+  await f.send('0'); assert.equal((await f.state()).flow.question.id, 'phq-4');
+});
+
+test('an unsent Telegram question is refreshed if Mini App advances during an outage', async t => {
+  let fail = false;
+  const f = await fixture(t, async (_method, payload) => { if (fail && payload?.text?.startsWith('Вопрос')) throw new Error('synthetic outage'); });
+  await f.send('/start'); fail = true;
+  const join = f.update('Мне 18+, начать'); assert.equal((await f.webhook(join)).status, 503);
+  await f.action({ type: 'answer', questionId: 'phq-0', value: 1 });
+  fail = false; f.setNow(WALL + 6000);
+  assert.equal((await f.webhook(join)).status, 200);
+  assert.match(f.calls.at(-1).payload.text, /^Вопрос 2 из 19/);
+  await f.send('0'); assert.equal((await f.state()).flow.question.id, 'phq-2');
+});
+
 test('an unconfirmed Telegram send remains durable; retry and server restart do not replay the answer', async t => {
   let fail = true;
   const f = await fixture(t, async method => { if (method === 'sendPhoto' && fail) throw Object.assign(new Error('synthetic outage'), { transient: true }); });

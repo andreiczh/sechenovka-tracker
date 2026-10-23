@@ -242,7 +242,7 @@ async function refreshState() {
   refreshing = true;
   try {
     const next = await getState();
-    if (!busy && next.revision >= state.revision && (next.revision !== state.revision || next.today !== state.today || next.carePlan?.id !== state.carePlan?.id)) {
+    if (!busy && next.revision >= state.revision && (next.revision !== state.revision || next.today !== state.today || next.carePlan?.id !== state.carePlan?.id || JSON.stringify(next.telegram) !== JSON.stringify(state.telegram))) {
       if (route() === 'visit') { state.carePlan = next.carePlan; const panel = document.querySelector('#care-plan-panel'); if (panel) panel.innerHTML = carePlanCard(); }
       else { state = next; render(); }
     }
