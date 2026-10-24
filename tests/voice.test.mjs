@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { createHmac } from 'node:crypto';
+import { request as httpRequest } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -99,15 +101,37 @@ test('Telegram voice is an expiring inbox, not an answer; playback is limited to
   const store=createStore(':memory:');t.after(()=>store.close());let now=NOW,downloads=0,sends=0;
   const c=readConfig({PUBLIC_ORIGIN:'https://bot.example',TELEGRAM_BOT_TOKEN:'123456:synthetic_token_for_tests_not_a_real_key',TELEGRAM_WEBHOOK_SECRET:'synthetic_webhook_secret_123456789012',TELEGRAM_IDENTITY_SECRET:'synthetic_identity_secret_123456789012'});
   const user=123456789,id=telegramSessionId(user,c.telegramIdentitySecret),state=createHistory(NOW);store.save(id,state);const persistedBefore=store.get(id);
-  const bot=createTelegram({config:c,store,wallClock:()=>now,callApi:async(method)=>method==='getFile'?{file_path:'voice/file_1.oga',file_size:4}:{message_id:++sends},fileFetch:async url=>{assert.ok(url.startsWith('https://api.telegram.org/file/bot'));downloads++;return new Response(new Uint8Array([1,2,3,4]));}});
+  const bot=createTelegram({config:c,store,wallClock:()=>now,callApi:async(method,payload)=>method==='getFile'?{file_path:payload.file_id==='synthetic-audio-id'?'music/file_1.m4a':'voice/file_1.oga',file_size:4}:{message_id:++sends},fileFetch:async url=>{assert.ok(url.startsWith('https://api.telegram.org/file/bot'));downloads++;return new Response(new Uint8Array([1,2,3,4]));}});
   const update={update_id:1,message:{message_id:1,from:{id:user,is_bot:false},chat:{id:user,type:'private'},voice:{file_id:'synthetic-file-id',duration:8,file_size:4}}};
   assert.equal((await bot.handleUpdate(update)).ok,true);const after=store.get(id);assert.deepEqual(after.assessments,persistedBefore.assessments);assert.deepEqual(after.diary,persistedBefore.diary);assert.deepEqual(after.active,persistedBefore.active);
-  const meta=await bot.readVoice(id);assert.equal(meta.available,true);assert.equal(meta.fileId,undefined);assert.equal((await bot.readVoice(id,true)).bytes.length,4);assert.equal(downloads,1);
+  const meta=await bot.readVoice(id);assert.equal(meta.available,true);assert.equal(meta.fileId,undefined);const voiceFile=await bot.readVoice(id,true);assert.equal(voiceFile.bytes.length,4);assert.equal(voiceFile.contentType,'audio/ogg');assert.equal(downloads,1);
   assert.equal((await bot.readVoice('another-owner')).available,false);
   const before=sends;await bot.handleUpdate(update);assert.equal(sends,before);
-  await bot.handleUpdate({update_id:2,message:{message_id:2,from:{id:user,is_bot:false},chat:{id:user,type:'private'},audio:{file_id:'synthetic-audio-id',duration:8,file_size:4,mime_type:'audio/mp4'}}});assert.equal((await bot.readVoice(id)).available,true);assert.deepEqual(store.get(id).active,persistedBefore.active);
+  await bot.handleUpdate({update_id:2,message:{message_id:2,from:{id:user,is_bot:false},chat:{id:user,type:'private'},audio:{file_id:'synthetic-audio-id',duration:8,file_size:4,mime_type:'audio/mp4'}}});assert.equal((await bot.readVoice(id)).available,true);assert.deepEqual(store.get(id).active,persistedBefore.active);const audioFile=await bot.readVoice(id,true);assert.equal(audioFile.contentType,'audio/mp4');assert.equal(downloads,2);
   await bot.handleUpdate({update_id:3,message:{message_id:3,from:{id:user,is_bot:false},chat:{id:user,type:'private'},audio:{file_id:'invalid',duration:-1,file_size:4}}});assert.equal((await bot.readVoice(id)).available,true);
-  now+=3600001;assert.equal((await bot.readVoice(id)).available,false);await assert.rejects(bot.readVoice(id,true),/устарело/);assert.equal(downloads,1);
+  now+=3600001;assert.equal((await bot.readVoice(id)).available,false);await assert.rejects(bot.readVoice(id,true),/устарело/);assert.equal(downloads,2);
+});
+
+test('Telegram audio HTTP responses retain Ogg, M4A and MP3 media types without exposing another owner',async t=>{
+  const token='123456:synthetic_token_for_tests_not_a_real_key';
+  const c=readConfig({PUBLIC_ORIGIN:'https://bot.example',TELEGRAM_BOT_TOKEN:token,TELEGRAM_WEBHOOK_SECRET:'synthetic_webhook_secret_123456789012',TELEGRAM_IDENTITY_SECRET:'synthetic_identity_secret_123456789012'});
+  const store=createStore(':memory:'),user=123456789;
+  store.save(telegramSessionId(user,c.telegramIdentitySecret),createHistory(NOW));
+  const files={ogg:['voice/file.oga','application/octet-stream','audio/ogg'],m4a:['music/file.m4a','application/octet-stream','audio/mp4'],mp3:['music/file.mp3','application/octet-stream','audio/mpeg'],header:['music/file.bin','audio/webm; codecs=opus','audio/webm'],unknown:['music/file.bin','text/html','application/octet-stream']};
+  let current;
+  const server=createAppServer({config:c,storage:store,wallClock:()=>NOW,logger:()=>{},telegramApi:async(method,payload)=>method==='getFile'?{file_path:files[payload.file_id][0],file_size:4}:{message_id:1},telegramFileFetch:async()=>new Response(new Uint8Array([1,2,3,4]),{headers:{'Content-Type':files[current][1]}})});
+  server.listen(0,'127.0.0.1');await once(server,'listening');t.after(async()=>{server.close();await once(server,'close')});
+  const origin='http://127.0.0.1:'+server.address().port;
+  const download=(headers={})=>new Promise((resolve,reject)=>{const req=httpRequest(origin+'/api/voice/audio',{headers:{Host:'bot.example',...headers}},res=>{const chunks=[];res.on('data',chunk=>chunks.push(chunk));res.on('end',()=>resolve(new Response(Buffer.concat(chunks),{status:res.statusCode,headers:res.headers})));});req.on('error',reject);req.end();});
+  function auth(id){const p=new URLSearchParams({auth_date:String(NOW/1000),user:JSON.stringify({id,first_name:'Synthetic'})});const data=[...p].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}=${v}`).join('\n');p.set('hash',createHmac('sha256',createHmac('sha256','WebAppData').update(token).digest()).update(data).digest('hex'));return {Host:'bot.example','X-Telegram-Init-Data':p.toString()};}
+  let update=0;
+  for(const [id] of Object.entries(files)){
+    current=id;
+    await server.telegram.handleUpdate({update_id:++update,message:{message_id:update,from:{id:user,is_bot:false},chat:{id:user,type:'private'},audio:{file_id:id,duration:8,file_size:4}}});
+    const r=await download(auth(user));assert.equal(r.status,200);assert.equal(r.headers.get('content-type'),files[id][2]);assert.equal(r.headers.get('cache-control'),'no-store');assert.equal((await r.arrayBuffer()).byteLength,4);
+  }
+  assert.equal((await download(auth(user+1))).status,404);
+  assert.equal((await download()).status,401);
 });
 
 test('long-session analysis parts are assembled only from matching server-held fragment hashes',async t=>{

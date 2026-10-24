@@ -328,7 +328,7 @@ async function openPatientVoice(extra = {}) {
   if (!state?.joined) { showToast('Сначала подтвердите возраст и условия демонстрации.', true); location.hash = 'today'; return; }
   const voiceEpisode = state.episodeId;
   let inbox = false;
-  if (state.telegram?.authenticated && route() === 'voice') { try { inbox = (await requestJSONVoiceInbox()).available; } catch { /* Normal recording remains available. */ } }
+  if (state.telegram?.authenticated) { try { inbox = (await requestJSONVoiceInbox()).available; } catch { /* Normal recording remains available. */ } }
   await openVoice({ scope: 'patient', endpoint: '/api/voice', ownerLabel: 'Моя заметка о самочувствии', sharing: state.connection?.enabled, urgent: state.support?.urgent, inbox, isCurrent: () => state?.episodeId === voiceEpisode, onError: text => showToast(text, true), onSaved: async () => { state = await getState(); render(); }, ...extra });
 }
 async function requestJSONVoiceInbox() { const { requestJSON } = await import('/shared/client.js'); const { telegramHeaders } = await import('/shared/telegram.js'); return requestJSON('/api/voice/inbox', { headers: telegramHeaders() }); }

@@ -228,7 +228,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         if (pathname === '/api/voice/inbox' || pathname === '/api/voice/audio') {
           if (!telegramIdentity || !telegram) throw new HttpError(401, 'Open the voice note from Telegram');
           const result = await telegram.readVoice(id, pathname.endsWith('/audio'));
-          if (result.bytes) { res.writeHead(200, { ...headers, 'Content-Type': 'audio/ogg', 'Cache-Control': 'no-store' }); res.end(result.bytes); }
+          if (result.bytes) { res.writeHead(200, { ...headers, 'Content-Type': result.contentType || 'application/octet-stream', 'Cache-Control': 'no-store' }); res.end(result.bytes); }
           else json(res, 200, result);
           return;
         }
