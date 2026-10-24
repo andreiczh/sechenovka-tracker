@@ -49,20 +49,37 @@ export async function decodeVoiceFile(file, maximumSeconds) {
     try { const buffer = await context.decodeAudioData(await file.arrayBuffer()); const offline = new OfflineAudioContext(1, Math.ceil(buffer.duration * 16000), 16000), source = offline.createBufferSource(); source.buffer = buffer; source.connect(offline.destination); source.start(); const decoded = await offline.startRendering(); return { audio: decoded.getChannelData(0).slice(), duration: buffer.duration }; } finally { await context.close(); }
   } finally { URL.revokeObjectURL(url); audio.removeAttribute('src'); audio.load(); }
 }
+let pendingMicrophoneRequest = null;
+const hiddenPage = () => typeof document !== 'undefined' && document.hidden;
+const requireVisiblePage = () => { if (hiddenPage()) throw new Error('Окно записи скрыто. Выведите эту вкладку Safari на экран и снова нажмите «Начать запись». Запись не началась.'); };
 export async function startVoiceCapture({ onChunk, onState, onEnded = () => {}, onSetup = () => {}, onLevel = () => {}, deviceId = '', maximumSeconds = 3600, inputStream = null, signal = null, setupTimeoutMs = 30000 }) {
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !window.AudioWorkletNode) throw new Error('В этом окне запись недоступна. Откройте сайт в Safari/Chrome или загрузите аудиофайл.');
-  let stream, context, contextClosing, recorder, node, source, timer, hiddenListener, abortListener, setupCancel; const blobs = []; let elapsed = 0, paused = false, stopping = false, disposed = false, levelReceived = false, heardSound = false, startAt = 0, pausedAt = 0, pausedTotal = 0;
+  // Safari defers getUserMedia for an occluded page, even after a trusted click.
+  // Do not queue an invisible permission prompt or consume its timeout off-screen.
+  if (!inputStream && pendingMicrophoneRequest) throw new Error('Safari ещё ожидает ответ на предыдущий запрос микрофона. Вернитесь в это окно и ответьте на запрос браузера, затем повторите запись.');
+  let stream, context, contextClosing, recorder, node, source, timer, hiddenListener, visibilityWaitListener, abortListener, setupCancel; const blobs = []; let elapsed = 0, paused = false, stopping = false, disposed = false, levelReceived = false, heardSound = false, startAt = 0, pausedAt = 0, pausedTotal = 0;
   const seconds = () => Math.min(maximumSeconds, Math.floor(((paused ? pausedAt : performance.now()) - startAt - pausedTotal) / 1000));
   const closeContext = () => contextClosing ||= context && context.state !== 'closed' ? context.close() : Promise.resolve();
-  const cleanup = async () => { disposed = true; clearInterval(timer); if(hiddenListener)document.removeEventListener('visibilitychange',hiddenListener);if(abortListener)signal?.removeEventListener('abort',abortListener); node?.disconnect(); source?.disconnect(); stream?.getTracks().forEach(t => t.stop()); await closeContext(); };
+  const cleanup = async () => { disposed = true; clearInterval(timer); if(hiddenListener)document.removeEventListener('visibilitychange',hiddenListener);if(visibilityWaitListener)document.removeEventListener('visibilitychange',visibilityWaitListener);if(abortListener)signal?.removeEventListener('abort',abortListener); node?.disconnect(); source?.disconnect(); stream?.getTracks().forEach(t => t.stop()); await closeContext(); };
   const checkAborted = () => { if (signal?.aborted) throw new DOMException('Запись отменена', 'AbortError'); };
-  const waitForSetup = (promise, message) => {
-    let timeout;
+  const waitForSetup = (promise, message, phase) => {
+    let timeout, visibilityHandler, remaining = setupTimeoutMs, visibleSince = null;
     return new Promise((resolve, reject) => {
-      timeout = setTimeout(() => reject(new Error(message)), setupTimeoutMs);
+      const schedule = () => {
+        clearTimeout(timeout);
+        if (visibleSince !== null) remaining -= performance.now() - visibleSince;
+        visibleSince = null;
+        if (hiddenPage()) { onSetup('visibility'); return; }
+        if (phase) onSetup(phase);
+        visibleSince = performance.now();
+        timeout = setTimeout(() => reject(new Error(message)), Math.max(0, remaining));
+      };
+      schedule();
+      visibilityHandler = schedule;
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', schedule);
       setupCancel = () => reject(new DOMException('Запись отменена', 'AbortError'));
       Promise.resolve(promise).then(resolve, reject);
-    }).finally(() => { clearTimeout(timeout); setupCancel = null; });
+    }).finally(() => { clearTimeout(timeout); if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', visibilityHandler); setupCancel = null; });
   };
   try {
     checkAborted();
@@ -71,14 +88,18 @@ export async function startVoiceCapture({ onChunk, onState, onEnded = () => {}, 
     context = new AudioContext();
     const resumed = context.resume(); resumed.catch(() => {});
     abortListener = () => { setupCancel?.(); stream?.getTracks().forEach(t=>t.stop());void closeContext().catch(()=>{}); };signal?.addEventListener('abort',abortListener,{once:true});
-    onSetup('permission');
-    const media = Promise.resolve(inputStream || navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, ...(deviceId?{deviceId:{exact:deviceId}}:{}) }, video: false })).then(value => { if(disposed || signal?.aborted){value.getTracks().forEach(t=>t.stop());throw new DOMException('Запись отменена','AbortError');}return value; });
-    stream = await waitForSetup(media, 'Браузер не завершил запрос микрофона. Проверьте разрешение сайта и повторите запись; можно загрузить аудиофайл.');
-    checkAborted();
-    onSetup('processor');
-    await waitForSetup(context.audioWorklet.addModule('/shared/voice-audio-worklet.js'), 'Не загрузился обработчик записи. Проверьте сеть и повторите.');checkAborted();
-    onSetup('audio');
-    await waitForSetup(resumed, 'Браузер не включил аудио. Нажмите «Начать запись» ещё раз или откройте сайт в обычном браузере.');checkAborted();
+    if (hiddenPage()) {
+      const visible = new Promise(resolve => { visibilityWaitListener = () => { if (!hiddenPage()) resolve(); }; document.addEventListener('visibilitychange', visibilityWaitListener); });
+      await waitForSetup(visible, 'Не удалось дождаться видимой вкладки. Откройте окно записи и повторите.', 'permission');
+      document.removeEventListener('visibilitychange', visibilityWaitListener); visibilityWaitListener = null; checkAborted();
+    }
+    const request = Promise.resolve(inputStream || navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, ...(deviceId?{deviceId:{exact:deviceId}}:{}) }, video: false }));
+    if (!inputStream) { pendingMicrophoneRequest = request; void request.finally(() => { if (pendingMicrophoneRequest === request) pendingMicrophoneRequest = null; }).catch(() => {}); }
+    const media = request.then(value => { if(disposed || signal?.aborted){value.getTracks().forEach(t=>t.stop());throw new DOMException('Запись отменена','AbortError');}return value; });
+    stream = await waitForSetup(media, 'Браузер не завершил запрос микрофона за 30 секунд активного окна. Ответьте на запрос Safari; если его нет, проверьте разрешение микрофона для этого сайта.', 'permission');
+    checkAborted(); requireVisiblePage();
+    await waitForSetup(context.audioWorklet.addModule('/shared/voice-audio-worklet.js'), 'Не загрузился обработчик записи. Проверьте сеть и повторите.', 'processor');checkAborted();
+    await waitForSetup(resumed, 'Браузер не включил аудио. Нажмите «Начать запись» ещё раз или откройте сайт в обычном браузере.', 'audio');checkAborted(); requireVisiblePage();
     node = new AudioWorkletNode(context, 'voice-pcm', { processorOptions: { maximumSeconds } }); source = context.createMediaStreamSource(stream); source.connect(node); node.connect(context.destination);
     const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
     recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 48000 } : { audioBitsPerSecond: 48000 });

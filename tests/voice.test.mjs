@@ -19,6 +19,7 @@ import { telegramSessionId } from '../lib/telegram-auth.mjs';
 import { emptyTherapyContext, saveTherapyContext, THERAPY_FIELDS } from '../lib/therapy-support.mjs';
 import { voiceSummary } from '../public/shared/voice-model.js';
 import { startVoiceCapture, prepareVoiceAudio } from '../public/shared/voice-capture.js';
+import { connectPatient, connectedCase, clinicWorkspaceId } from '../lib/care-link.mjs';
 const NOW = Date.parse('2026-10-24T08:00:00Z');
 const rows = [{ id: 's0', start: 0, end: 3, text: 'Что стало труднее делать?', role: 'doctor' }, { id: 's1', start: 3, end: 9, text: 'Мне трудно заснуть. Дозу я не менял.', role: 'patient' }];
 const config = readConfig({ OPENROUTER_API_KEY: 'synthetic_key_not_real_123456', AI_PROVIDER: 'openrouter' });
@@ -58,6 +59,18 @@ test('physician voice uses patient context, caches inference, keeps notes privat
   assert.equal(f.store.get('owner').voiceNotes,undefined);assert.doesNotMatch(JSON.stringify(f.store.get('owner')),/PRIVATE-VOICE-CLINIC/);
   const other=await f.run({...args,patientId:'olga'});assert.equal(other.notes.length,0);
   await assert.rejects(f.run({...args,action:{...input,op:'save',title:'stale',duration:9,reviewed:true}}),/изменились/);
+});
+test('newly connected patient can open and save a first physician voice note before any doctor review exists',async t=>{
+  const f=fixture(t),state=f.store.get('owner');connectPatient(state,'Новый вымышленный профиль',NOW);f.store.save('owner',state);
+  const wid=clinicWorkspaceId('owner');assert.equal(f.store.getWorkspace(wid),null);
+  const args={sessionId:'owner',scope:'psychiatrist',patientId:state.careConnection.id,clinic:true,authorize:async()=>true};
+  const c=await f.run(args);assert.equal(c.notes.length,0);assert.equal(f.store.getWorkspace(wid),null);
+  const saved=await f.run({...args,action:{op:'save',episodeId:c.episodeId,sourceRevision:c.sourceRevision,segments:rows,title:'FIRST-PRIVATE-VOICE',duration:9,synthetic:true,participantsConsent:true,reviewed:true}});
+  assert.equal(saved.notes.length,1);assert.equal(saved.notes[0].title,'FIRST-PRIVATE-VOICE');
+  const p=clinicianPatient(f.store.getWorkspace(wid),args.patientId,state,NOW,connectedCase(state,'owner'));
+  assert.equal(p.review.confirmed,null);assert.doesNotMatch(JSON.stringify(f.store.get('owner')),/FIRST-PRIVATE-VOICE/);
+  await assert.rejects(f.run({...args,patientId:'care-someone-else'}),/больше не передаётся/);
+  state.careConnection.enabled=false;f.store.save('owner',state);await assert.rejects(f.run(args),/больше не передаётся/);
 });
 test('an inference completed after patient changes is rejected without publishing a plan',async t=>{
   const f=fixture(t);let release,entered;const gate=new Promise(r=>{release=r}),started=new Promise(r=>{entered=r});
@@ -187,6 +200,36 @@ test('microphone timeout releases the audio context and stops any stream granted
     Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
     Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='suspended';resume(){resumedBeforeMedia=true;return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
     await assert.rejects(startVoiceCapture({onChunk:()=>{},onState:()=>{},deviceId:'synthetic-microphone',setupTimeoutMs:10}),/не завершил запрос микрофона/);assert.equal(closed,1);
+    await assert.rejects(startVoiceCapture({onChunk:()=>{},onState:()=>{}}),/предыдущий запрос/);assert.equal(closed,1);
+    resolveMedia({getTracks:()=>[{stop:()=>{stopped++}}]});await new Promise(resolve=>setImmediate(resolve));assert.equal(stopped,1);
+  }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
+});
+test('Safari occlusion waits without queuing permission and can be cancelled before any microphone is requested',async()=>{
+  const keys=['navigator','window','document','AudioContext'],descriptors=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let requests=0,closed=0;const listeners=new Set(),phases=[];
+  try{
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:()=>{requests++;}}}});
+    Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
+    Object.defineProperty(globalThis,'document',{configurable:true,value:{hidden:true,addEventListener:(type,fn)=>listeners.add(fn),removeEventListener:(type,fn)=>listeners.delete(fn)}});
+    Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='running';resume(){return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
+    const abort=new AbortController(),task=startVoiceCapture({onChunk:()=>{},onState:()=>{},onSetup:p=>phases.push(p),signal:abort.signal,setupTimeoutMs:10});
+    await new Promise(resolve=>setTimeout(resolve,25));assert.equal(requests,0);assert.deepEqual(phases,['visibility']);
+    abort.abort();await assert.rejects(task,{name:'AbortError'});assert.equal(closed,1);assert.equal(listeners.size,0);
+  }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
+});
+test('permission timeout counts visible time, while cancellation in a hidden Safari still releases a late grant',async()=>{
+  const keys=['navigator','window','document','AudioContext'],descriptors=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let resolveMedia,closed=0,stopped=0;const phases=[],listeners=new Set();
+  try{
+    const media=new Promise(resolve=>{resolveMedia=resolve}),page={hidden:false,addEventListener:(type,fn)=>listeners.add(fn),removeEventListener:(type,fn)=>listeners.delete(fn)};
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:()=>media}}});
+    Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
+    Object.defineProperty(globalThis,'document',{configurable:true,value:page});
+    Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='running';resume(){return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
+    const abort=new AbortController();let settled=false;
+    const task=startVoiceCapture({onChunk:()=>{},onState:()=>{},onSetup:p=>phases.push(p),signal:abort.signal,setupTimeoutMs:20});
+    void task.then(()=>{settled=true},()=>{settled=true});
+    page.hidden=true;for(const fn of [...listeners])fn();
+    await new Promise(resolve=>setTimeout(resolve,40));assert.equal(settled,false);assert.deepEqual(phases,['permission','visibility']);
+    abort.abort();await assert.rejects(task,{name:'AbortError'});assert.equal(listeners.size,0);assert.equal(closed,1);
     resolveMedia({getTracks:()=>[{stop:()=>{stopped++}}]});await new Promise(resolve=>setImmediate(resolve));assert.equal(stopped,1);
   }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
 });
