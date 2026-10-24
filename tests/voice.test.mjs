@@ -55,9 +55,9 @@ test('physician voice uses patient context, caches inference, keeps notes privat
   const ai=await f.run({...args,action:{...input,op:'analyze',aiConsent:true}});assert.equal(ai.analysis.usage.cost,0);assert.equal(f.calls,1);assert.ok(f.sent.context.length);assert.doesNotMatch(JSON.stringify(f.sent),/Анна|PRIVATE/);
   assert.equal((await f.run({...args,action:{...input,op:'analyze',aiConsent:true}})).cached,true);assert.equal(f.calls,1);
   c=await f.run({...args,action:{...input,op:'save',title:'PRIVATE-VOICE-CLINIC',duration:9,reviewed:true}});
-  const after=clinicianPatient(f.store.getWorkspace('owner'),'anna',f.store.get('owner'),NOW);assert.equal(after.voiceNotes.length,1);assert.ok(after.voiceNotes[0].questions.includes('sleep'));assert.ok(after.voiceNotes[0].questions.includes('safety'));assert.notEqual(after.sourceRevision,before.sourceRevision);assert.deepEqual(after.review.confirmed,before.review.confirmed);
+  const after=clinicianPatient(f.store.getWorkspace('owner'),'anna',f.store.get('owner'),NOW);assert.equal(after.voiceNotes.length,before.voiceNotes.length+1);const saved=after.voiceNotes.find(n=>n.id===c.savedId);assert.ok(saved.questions.includes('sleep'));assert.ok(saved.questions.includes('safety'));assert.notEqual(after.sourceRevision,before.sourceRevision);assert.deepEqual(after.review.confirmed,before.review.confirmed);
   assert.equal(f.store.get('owner').voiceNotes,undefined);assert.doesNotMatch(JSON.stringify(f.store.get('owner')),/PRIVATE-VOICE-CLINIC/);
-  const other=await f.run({...args,patientId:'olga'});assert.equal(other.notes.length,0);
+  const other=await f.run({...args,patientId:'olga'});assert.equal(other.notes.some(n=>n.id===c.savedId),false);assert.ok(other.notes.every(n=>n.episodeId===other.episodeId));
   await assert.rejects(f.run({...args,action:{...input,op:'save',title:'stale',duration:9,reviewed:true}}),/изменились/);
 });
 test('newly connected patient can open and save a first physician voice note before any doctor review exists',async t=>{
@@ -152,7 +152,7 @@ test('long-session analysis parts are assembled only from matching server-held f
   const next=rows.map((r,i)=>({...r,id:'s'+(i+2),text:r.text+' Второй фрагмент.'}));
   for(const fragments of [rows,next]){await f.run({...args,action:{op:'analyze',episodeId:c.episodeId,sourceRevision:c.sourceRevision,segments:fragments,synthetic:true,participantsConsent:true,aiConsent:true}});f.advance();}
   const combined=await f.run({...args,action:{op:'save',episodeId:c.episodeId,sourceRevision:c.sourceRevision,segments:[...rows,...next],title:'Беседа по частям',duration:30,synthetic:true,participantsConsent:true,reviewed:true}});
-  assert.equal(combined.notes[0].ai.complete,true);assert.equal(combined.notes[0].ai.parts,2);assert.equal(combined.notes[0].segments.every(r=>r.topics.length>0),true);assert.equal(f.calls,2);
+  const saved=combined.notes.find(n=>n.id===combined.savedId);assert.equal(saved.ai.complete,true);assert.equal(saved.ai.parts,2);assert.equal(saved.segments.every(r=>r.topics.length>0),true);assert.equal(f.calls,2);
 });
 test('VOP checklist changes cannot reuse an analysis prepared for other observations',async t=>{
   const f=fixture(t),args={sessionId:'owner',scope:'vop'},c=await f.run(args);

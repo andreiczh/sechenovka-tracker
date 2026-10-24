@@ -3,7 +3,7 @@
 const positions = new Map();
 const revealers = new WeakMap();
 const transparent = '.home-grid,.two-col,.stack,.overview-grid,.detail-grid,.clinical-grid,.handoff-layout,.handoff-main,.question-shell,.settings-list,.checklist-main,.checklist-columns,.checklist-items,.workspace';
-const pinned = '.support-tabs,.page-heading,.lead-row,.detail-back,.patient-heading,.sync-line,.detail-tabs,.visit-subnav,.assessment-toolbar,.modal-head,.dialog-header,.back-button,.intro,.compact-actions';
+const pinned = '.support-tabs,.page-heading,.lead-row,.detail-back,.patient-heading,.sync-line,.profile-status,.detail-tabs,.visit-subnav,.assessment-toolbar,.modal-head,.dialog-header,.back-button,.intro,.compact-actions';
 const repeated = 'h1,h2,h3,legend,.group-title,thead,.card-head,.card-header,.roster-count,.question-window';
 const noSplit = 'button,a,input,textarea,select,label,svg,img,hr,summary,.roster tr,.row,.form-row,.metric-grid,.score-comparison,.option-list,.number-options,.tab-switch,.range-labels';
 

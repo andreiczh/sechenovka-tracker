@@ -10,6 +10,7 @@ import { readConfig, acceptsHost, acceptsOrigin } from './lib/config.mjs';
 import { createPatient, createHistory, snapshot, applyAction, deliverReminders, botKeyboard } from './lib/patient.mjs';
 import { demoNow } from './lib/time.mjs';
 import { createClinicianWorkspace, clinicianList, clinicianListItem, clinicianPatient, saveClinicalReview, patientCarePlan } from './lib/clinician.mjs';
+import { ensureDemoVoiceHistory } from './lib/demo-voices.mjs';
 import { connectedCase, isSharedPatient, clinicWorkspaceId, emptyClinicWorkspace } from './lib/care-link.mjs';
 import { createClinicianAuth } from './lib/clinician-auth.mjs';
 import { aiView, createAiSummaryService } from './lib/ai-summary.mjs';
@@ -24,7 +25,7 @@ import { createVoiceAssets } from './lib/voice-assets.mjs';
 const directory = dirname(fileURLToPath(import.meta.url));
 const root = resolve(directory, 'public');
 const { version } = JSON.parse(await readFile(resolve(directory, 'package.json'), 'utf8'));
-const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.wav':'audio/wav' };
 const headers = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'", 'Cache-Control': 'no-cache' };
 class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -245,6 +246,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
           if (doctorRoute) {
             let workspace = await transaction.getWorkspace(id);
             if (!workspace) { workspace = createClinicianWorkspace(wallClock()); await transaction.saveWorkspace(id, workspace); }
+            else if (ensureDemoVoiceHistory(workspace)) await transaction.saveWorkspace(id, workspace);
             const patientId = doctorRoute[1];
             if (req.method === 'GET') {
               if (!patientId) return reply(200, { patients: clinicianList(workspace, state, wallClock()), demo: true }, extra);
@@ -299,6 +301,18 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
         if (info.isDirectory()) file = resolve(file, 'index.html');
         const body = await readFile(file);
         const pageHeaders = pathname.startsWith('/patient') ? { ...headers, 'Content-Security-Policy': headers['Content-Security-Policy'].replace("script-src 'self'", "script-src 'self' https://telegram.org").replace("frame-ancestors 'self'", "frame-ancestors 'self' https://web.telegram.org") } : headers;
+        if (extname(file)==='.wav') {
+          const audioHeaders={...pageHeaders,'Content-Type':'audio/wav','Accept-Ranges':'bytes'};
+          if (req.headers.range) {
+            const match=/^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+            const suffix=match && !match[1] && Number(match[2]);
+            const start=match?(match[1]?Number(match[1]):Math.max(0,body.length-suffix)):NaN;
+            const end=match?(match[1]&&match[2]?Math.min(Number(match[2]),body.length-1):body.length-1):NaN;
+            if(!match||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=body.length||end<start||!match[1]&&!suffix){res.writeHead(416,{...audioHeaders,'Content-Range':`bytes */${body.length}`});res.end();return;}
+            res.writeHead(206,{...audioHeaders,'Content-Range':`bytes ${start}-${end}/${body.length}`,'Content-Length':end-start+1});res.end(req.method==='HEAD'?undefined:body.subarray(start,end+1));return;
+          }
+          res.writeHead(200,{...audioHeaders,'Content-Length':body.length});res.end(req.method==='HEAD'?undefined:body);return;
+        }
         res.writeHead(200, { ...pageHeaders, 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Content-Length': body.length });
         res.end(req.method === 'HEAD' ? undefined : body);
       } catch { res.writeHead(404, { ...headers, 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Страница не найдена'); }

@@ -1,6 +1,9 @@
 // Presentation only: use saved facts and the same question catalogue as the
 // full recommendations window. Never infer risk, diagnosis or missing values.
 import { DOCTOR_QUESTIONS } from '../shared/evidence.js';
+export function initialWorkspaceMode(session, patientId=null) {
+  return session?.enabled && patientId?.startsWith('care-') ? 'clinic' : 'demo';
+}
 
 const briefQuestions = {
   general: 'Начало, длительность, прежние эпизоды и ожидания от помощи.',
