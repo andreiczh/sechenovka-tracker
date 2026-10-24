@@ -1,0 +1,83 @@
+/* Content navigation belongs directly below the heading, never in the footer.
+   One app frame; long source tables retain an accessible inner scroll area. */
+.viewport-controls{justify-content:flex-start;height:auto;min-height:40px;padding:0 0 7px;border-top:0;border-bottom:1px solid var(--line);max-width:100%;overflow:hidden}
+.viewport-controls[hidden]{display:none!important}
+.viewport-sections{display:flex;gap:5px;align-items:center;width:100%;min-width:0;overflow-x:auto;scrollbar-width:thin;padding:1px}
+.viewport-controls .viewport-section{width:auto;height:auto;min-height:34px;flex:none;border:0;border-radius:7px;font:500 13px/1.4 var(--ui-font);padding:8px 13px;color:var(--muted);background:transparent;white-space:nowrap;cursor:pointer}
+.viewport-controls .viewport-section:hover{background:#f4f7f4}
+.viewport-controls .viewport-section[aria-pressed=true]{background:var(--green-soft);color:var(--green);box-shadow:inset 0 0 0 1px #d9e5db}
+.viewport-semantic>.viewport-content{display:block;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin}
+.viewport-semantic .viewport-transparent{display:revert!important}
+.viewport-semantic>.viewport-content>[data-screen-panel]{min-width:0}
+.viewport-semantic .clinic-panel>.card{margin-bottom:14px}
+.viewport-semantic .clinic-panel>.section-gap:first-child{margin-top:0}
+.viewport-semantic>.viewport-footer:empty{display:none}
+.viewport-with-side{grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:'head head' 'controls side' 'content side' 'footer footer'}
+.workspace-mode{font-size:11px;border:1px solid var(--line);padding:3px 7px;border-radius:5px;margin-left:9px;font-weight:400;white-space:nowrap}
+.clinician-app .viewport-head .detail-back{margin:0;min-height:16px;height:auto}
+.clinician-app .viewport-head .patient-heading{margin:3px 0 7px}
+.clinician-app .viewport-head .detail-tabs{min-height:40px;margin:5px 0 0}
+.clinician-app .viewport-head .detail-tabs a{padding:8px 15px}
+.clinician-app .viewport-head .sync-line{font-size:12px;margin:0 0 2px}
+.clinician-app .viewport-head .visit-subnav{margin:4px 0 0}
+.clinician-app .viewport-head .visit-subnav a{padding:7px 12px}
+.assessment-toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 0}
+.assessment-toolbar label{font-size:13px}
+.assessment-toolbar p{max-width:520px;font-size:13px;line-height:1.4}
+.summary-method{margin:14px 0;font-size:13px;color:var(--muted)}
+.summary-method>summary{cursor:pointer}
+.summary-facts{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;margin:12px 0}
+.summary-facts dt{font-size:13px;color:var(--muted);margin-bottom:4px}
+.summary-facts dd{font-size:15px;margin:0;line-height:1.5}
+.meeting-questions{font-size:14px;line-height:1.5;padding-left:23px}
+.meeting-questions li+li{margin-top:10px}
+.clinical-dashboard{display:grid;gap:12px}
+.dashboard-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.dashboard-stat{display:flex;flex-direction:column;justify-content:space-between;min-width:0;border:1px solid var(--line);border-radius:10px;padding:12px 15px;text-decoration:none;background:#fff;gap:3px}
+a.dashboard-stat:hover{border-color:#99b3a1;background:#fafcf9}
+.dashboard-stat>span{font-size:12px;line-height:1.4;color:var(--muted)}
+.dashboard-stat>strong{font-size:27px;font-weight:600;line-height:1.2;letter-spacing:-.04em}
+.dashboard-stat strong small{font-size:14px;color:var(--muted);font-weight:400;letter-spacing:0}
+.dashboard-stat .delta{font-size:12px}
+.dashboard-main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px;align-items:stretch}
+.clinician-app .clinical-dashboard .card{padding:15px 17px;margin:0}
+.clinician-app .clinical-dashboard .card h2{font-size:17px}
+.clinician-app .clinical-dashboard .card-head{margin:0 0 7px;align-items:center;gap:8px}
+.clinical-dashboard .card-head .button{font-size:12px;padding:6px 9px;min-height:31px;white-space:nowrap}
+.clinical-dashboard .card-head .text-link{font-size:13px;white-space:nowrap}
+.dashboard-chart{display:block;width:100%;height:124px;overflow:visible}
+.dashboard-chart text{font:12px var(--ui-font);fill:var(--muted)}
+.dashboard-legend{display:flex;gap:15px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:2px 0 3px}
+.dashboard-legend span{display:flex;align-items:center;gap:5px}
+.dashboard-legend i{width:14px;height:3px;background:var(--green);display:inline-block}
+.dashboard-legend i.anxiety{background:#af7060}
+.clinician-app .dashboard-trend p{font-size:12px;margin:0}
+.dashboard-inline{border-top:1px solid var(--line);padding-top:8px;margin-top:8px;display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.dashboard-inline span{font-size:12px;color:var(--muted)}
+.dashboard-inline b{font-size:14px;color:var(--ink);margin-left:3px}
+.dashboard-questions ol{font-size:13px;line-height:1.45;padding-left:19px;margin:5px 0 10px}
+.dashboard-questions li+li{margin-top:5px}
+.dashboard-contact{display:flex;gap:3px 12px;align-items:baseline;border-top:1px solid var(--line);padding:8px 0 6px;flex-wrap:wrap}
+.dashboard-contact span{font-size:12px;color:var(--muted)}
+.dashboard-contact strong{font-size:13px;font-weight:500}
+.dashboard-questions>.text-link{font-size:13px}
+.dashboard-bottom{display:grid;grid-template-columns:1fr 1.1fr 1fr;border:1px solid var(--line);border-radius:10px;background:#f9fbf8;padding:13px 16px;gap:18px}
+.dashboard-bottom>div{min-width:0}
+.dashboard-label{font-size:12px;color:var(--muted);font-weight:500;display:block;margin-bottom:4px}
+.dashboard-bottom p{font-size:13px;line-height:1.45;margin:0 0 4px}
+.dashboard-bottom .small{font-size:12px}
+.dashboard-review .button{font-size:12px;padding:5px 9px;min-height:30px}
+.dashboard-review{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto 1fr;gap:4px 8px;align-content:start;align-items:start}
+.dashboard-review>.dashboard-label{grid-column:1;grid-row:1;margin:0;padding-top:4px}
+.dashboard-review>p{grid-column:1/-1;grid-row:2}
+.dashboard-review>.button{grid-column:2;grid-row:1;min-height:26px;padding:4px 8px}
+.dashboard-alert{border:1px solid #efd7d2;background:var(--red-soft);border-radius:9px;padding:9px 13px;display:flex;gap:6px 12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--red)}
+.dashboard-alert a{margin-left:auto;text-decoration:underline;white-space:nowrap}
+.dashboard-empty{height:124px;display:grid;place-items:center;color:var(--muted);font-size:14px}
+@media(min-width:1000px) and (max-height:799px){.dashboard-stat{padding:9px 13px;gap:2px}.dashboard-bottom{padding:10px 14px;gap:16px}.dashboard-bottom p{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}.dashboard-chart,.dashboard-empty{height:112px}.dashboard-contact{padding:6px 0}.dashboard-questions ol{line-height:1.45;margin-bottom:7px}.clinician-app .clinical-dashboard .card{padding:12px 15px}.dashboard-bottom .small{line-height:1.4}}
+@media(min-width:1000px) and (min-height:800px){.clinical-dashboard{gap:16px}.dashboard-stat{padding:17px 20px}.dashboard-chart,.dashboard-empty{height:166px}.dashboard-questions ol{font-size:14px;line-height:1.6}.dashboard-bottom{padding:18px 20px}.dashboard-bottom p{font-size:14px}}
+@media(max-width:999px){.dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-main{grid-template-columns:1fr}.dashboard-bottom{grid-template-columns:1fr 1fr}.dashboard-review{grid-column:1/-1}.assessment-toolbar{align-items:stretch;flex-direction:column;gap:5px}.assessment-toolbar p{display:none}.dashboard-chart{height:145px}}
+@media(max-width:600px){.viewport-controls .viewport-section{font-size:13px;min-height:36px;padding:8px 10px}.viewport-controls{min-height:42px;padding-bottom:5px}.clinician-app .viewport-head .detail-tabs a{padding:8px 7px}.clinician-app .viewport-head .detail-tabs{min-height:38px}.workspace-mode{display:none}.clinical-dashboard{gap:10px}.dashboard-stats{gap:8px}.dashboard-stat{padding:10px 11px}.dashboard-stat>strong{font-size:25px}.dashboard-stat>span{font-size:12px}.dashboard-bottom{grid-template-columns:1fr;gap:14px}.dashboard-review{grid-column:auto}.dashboard-alert{align-items:flex-start;flex-direction:column}.dashboard-alert a{margin:0}.clinician-app .viewport-semantic .detail-grid{grid-template-columns:1fr}.viewport-semantic>.viewport-content{scrollbar-gutter:auto}}
+@media print{.viewport-controls{display:none!important}.viewport-semantic>.viewport-content{overflow:visible!important;display:block!important}[data-screen-panel][data-viewport-hidden]{display:block!important}.clinical-dashboard{break-inside:avoid}}
+@media(min-width:1000px) and (max-height:799px){.has-priority{gap:8px}.has-priority .dashboard-chart,.has-priority .dashboard-empty{height:80px}.has-priority .dashboard-stat{padding:8px 13px}.has-priority .dashboard-main .card{padding:10px 13px}.has-priority .dashboard-bottom{padding:8px 13px}.has-priority .dashboard-contact{padding:5px 0}.has-priority .dashboard-questions ol{margin-top:3px;margin-bottom:5px}.has-priority .dashboard-questions li+li{margin-top:3px}.has-priority .dashboard-bottom p{-webkit-line-clamp:1}}
+@media(max-width:600px){.summary-facts{grid-template-columns:1fr;gap:13px}}
