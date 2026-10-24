@@ -1,3 +1,4 @@
+import { openRecommendations } from '/shared/recommendations.js';
 import { openVoice } from '/shared/voice-ui.js';
 import { buildVopConversation } from './shared/vop-support.js';
 import { startViewport, revealViewportElement } from './shared/viewport.js';
@@ -205,14 +206,21 @@ if ('serviceWorker' in navigator && window.isSecureContext) {
   });
 }
 
-startViewport({ mainSelector: '#checklist-view:not([hidden]), #patient-view:not([hidden])', watchSelector: 'main', skip: el => el.id === 'checklist-view' && innerWidth >= 1000 && innerHeight >= 620 });
+startViewport({ mainSelector: '#checklist-view:not([hidden]), #patient-view:not([hidden])', watchSelector: 'main', skip: el => el.id === 'checklist-view' && innerWidth >= 1000 && innerHeight >= 700 });
 
 byId('compact-screening').addEventListener('click', navigateToPatient);
 byId('compact-safety').addEventListener('click', () => revealViewportElement(byId('safety-section')));
 
 byId('checklist-groups').addEventListener('click', event => { const id = event.target.closest('[data-info]')?.dataset.info; if (!id) return; const item = checklistGroups.flatMap(g => g.items).find(i => i.id === id); if (!item) return; byId('observation-title').textContent = item.title; byId('observation-description').textContent = item.description; byId('observation-dialog').showModal(); });
 
-byId('conversation-button').addEventListener('click',()=>{const items=checklistGroups.flatMap(g=>g.items).filter(i=>selected.has(i.id));const v=buildVopConversation(items,selectedSafety.size>0);byId('conversation-content').innerHTML=v.html;byId('conversation-copy').hidden=!v.script;byId('conversation-dialog').showModal();});
+function openVopRecommendations() {
+  const items=checklistGroups.flatMap(g=>g.items).filter(i=>selected.has(i.id)),v=buildVopConversation(items,selectedSafety.size>0);
+  const panel=openRecommendations({key:'vop',title:'Рекомендации к беседе',description:'Подсказки по отметкам памятки. Работают без внешнего ИИ.',content:v.html+(v.script?'<button type="button" class="button button-primary" id="vop-copy-script">Скопировать объяснение пациенту</button>':'')});
+  panel.querySelector('#vop-copy-script')?.addEventListener('click',async()=>showToast(await copyText(v.script)?'Объяснение скопировано':'Выделите текст и скопируйте его'));
+}
+byId('conversation-button').addEventListener('click',openVopRecommendations);
+byId('recommendations-vop').addEventListener('click',openVopRecommendations);
+byId('voice-vop-history').addEventListener('click',()=>{void openVoice({scope:'vop',endpoint:'/api/voice?scope=vop',ownerLabel:'Беседы ВОП',library:true,getContext:()=>({observations:[...selected],safety:[...selectedSafety]}),onError:text=>showToast(text)});});
 byId('conversation-close').addEventListener('click',()=>byId('conversation-dialog').close());
 byId('conversation-copy').addEventListener('click',async()=>{const text=byId('conversation-script')?.textContent;if(text)showToast(await copyText(text)?'Объяснение скопировано':'Выделите текст и скопируйте его');});
 

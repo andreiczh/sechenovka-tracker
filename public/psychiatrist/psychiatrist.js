@@ -1,3 +1,4 @@
+import { openRecommendations, closeRecommendations, recommendationsOpen } from '/shared/recommendations.js';
 import { openVoice, voiceButton, voiceNotesSection, enhanceVoiceFields, closeVoice } from '/shared/voice-ui.js';
 import { startViewport, revealViewportElement } from '/shared/viewport.js';
 import { requestJSON, escapeHtml as h, dateLabel, numericDate, numberLabel as n, icon } from '/shared/client.js';
@@ -5,7 +6,7 @@ import { FORMS, FREQUENCY, FUNCTION_LABELS } from '/shared/clinical.js';
 import { renderDoctorSupport } from '/shared/support-ui.js';
 
 const app = document.querySelector('#app'), modal = document.querySelector('#modal');
-const tabs = [['overview', 'Перед приёмом', 'today'], ['assessments', 'Анкеты', 'results'], ['diary', 'Дневник', 'diary'], ['dynamics', 'Динамика', 'dynamics'], ['plan', 'Контекст и план', 'visit'], ['support', 'Разбор и терапия', 'help'], ['voice', 'Беседы', 'diary'], ['summary', 'Сводка', 'download']];
+const tabs = [['overview', 'Обзор', 'today'], ['assessments', 'Анкеты', 'results'], ['diary', 'Дневник', 'diary'], ['dynamics', 'Динамика', 'dynamics'], ['plan', 'Приём', 'visit']];
 const metricLabels = { mood: 'Настроение', anxiety: 'Тревога', sleep: 'Сон', function: 'Обычные дела' };
 let roster = [], patient = null, loading = false, busy = false, loadVersion = 0, lastSync = null, syncError = false;
 let query = '', filter = 'all', sort = 'appointment', metric = 'mood', assessmentId = null, selectedDay = null;
@@ -16,7 +17,7 @@ let toastTimer;
 let clinicSession = null, workspaceMode = 'clinic';
 let aiBusy = false, aiError = '';
 const apiBase = () => workspaceMode === 'clinic' ? '/api/clinic/patients' : '/api/clinician/patients';
-function clearPrivateView() { void closeVoice(); loadVersion++; loading = false; aiError = ''; document.querySelector('#request-status').hidden = true; patient = null; roster = []; formDrafts.clear(); therapyDrafts.clear(); presented.clear(); if (modal.open) modal.close(); }
+function clearPrivateView() { closeRecommendations(); void closeVoice(); loadVersion++; loading = false; aiError = ''; document.querySelector('#request-status').hidden = true; patient = null; roster = []; formDrafts.clear(); therapyDrafts.clear(); presented.clear(); if (modal.open) modal.close(); }
 function loginPage() {
   return `<main class="clinic-login"><a class="brand" href="/"><img src="/icons/mark.svg" alt="" width="36" height="36"><span>Трекер Сеченовка</span></a><section class="card"><div class="eyebrow">Кабинет психиатра</div><h1>Подключённые профили</h1><p>Войдите, чтобы увидеть тестовые анкеты, дневник и динамику из бота и Mini App.</p><form id="clinic-login-form"><label class="form-field">Ключ доступа<input type="password" name="key" autocomplete="off" required placeholder="Ключ учебного кабинета"></label><p id="login-error" class="sync-error" role="alert"></p><button class="button" type="submit">Войти в кабинет</button></form><p class="small muted">Вводите только вымышленные данные. Сеанс длится до 12 часов. Медицинское наблюдение в реальном времени не организовано.</p><button class="text-link" data-action="demo-workspace">Посмотреть готовые примеры →</button></section></main>`;
 }
@@ -52,10 +53,11 @@ function render() {
   if (workspaceMode === 'clinic' && !clinicSession.authenticated) { app.innerHTML = loginPage(); return; }
   const r = route();
   document.title = `${r.id && patient ? patient.identity.name : 'Пациенты'} — Трекер Сеченовка`;
-  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#/patients"><img src="/icons/mark.svg" alt=""><span>Трекер Сеченовка<small>Кабинет психиатра</small></span></a><div class="side-caption">Практика</div><nav class="nav" aria-label="Навигация кабинета"><a href="#/patients" aria-current="${r.id ? 'false' : 'page'}">${icon('today')}Пациенты</a></nav><div class="side-links"><button class="text-link" data-action="${workspaceMode==='clinic'?'demo-workspace':'clinic-workspace'}">${workspaceMode==='clinic'?'Готовые примеры':'Подключённые профили'}</button></div><div class="side-caption">Другие интерфейсы</div><div class="side-links"><a href="/patient/">${icon('diary')}Миниапп пациента</a><a href="/bot/">${icon('bot')}Диалог бота</a><a href="/">${icon('help')}Памятка ВОП</a></div><div class="side-info">Учебная демонстрация<br>Только вымышленные данные<br>18+ · Россия</div></aside><div class="main-shell"><header class="topbar"><span class="topbar-left">Кабинет психиатра <span class="muted">/ ${r.id ? 'Карточка пациента' : 'Пациенты'}</span></span><a class="mobile-brand" href="#/patients"><img src="/icons/mark.svg" alt="">Трекер Сеченовка</a><div class="topbar-right"><button class="demo-badge" data-action="about">Демонстрация</button><div class="doctor-user"><span class="doctor-avatar">ВР</span><span>Тестовый психиатр</span></div>${workspaceMode==='clinic'?button('Выйти','clinic-logout'):button('Войти в кабинет','clinic-workspace')}</div></header><main id="main" class="main" tabindex="-1">${loading && !patient && r.id ? empty('Открываем карточку…', 'Загружаем сохранённые данные.') : r.id ? patient && patient.id === r.id ? detail(r.tab) : empty('Карточка недоступна', 'Вернитесь к списку или обновите страницу.') + `<a class="button secondary" href="#/patients">К пациентам</a>` : listPage()}<footer class="footer-note">Демонстрационный кабинет. Данные, имена и назначения вымышлены. Самоотчёт пациента требует уточнения при беседе; медицинские решения принимает врач. В реальном времени обращения здесь никто не разбирает.</footer></main></div></div>`;
-  if (r.tab === 'plan') { const review = document.querySelector('#review-card'); if (review) review.parentElement.prepend(review); }
+  app.innerHTML = `<div class="shell"><div class="main-shell"><header class="topbar"><a class="mobile-brand brand" href="#/patients"><img src="/icons/mark.svg" alt=""><span>Трекер Сеченовка</span></a><span class="workspace-label">Кабинет психиатра</span><div class="topbar-right"><details class="workspace-menu"><summary>Меню</summary><div><a href="#/patients">Все пациенты</a><button data-action="${workspaceMode==='clinic'?'demo-workspace':'clinic-workspace'}">${workspaceMode==='clinic'?'Готовые примеры':'Подключённые профили'}</button><a href="/patient/">Миниапп пациента</a><a href="/">Памятка ВОП</a><button data-action="about">О демонстрации</button></div></details>${workspaceMode==='clinic'?button('Выйти','clinic-logout'):button('Войти в кабинет','clinic-workspace')}</div></header><main id="main" class="main" tabindex="-1">${loading && !patient && r.id ? empty('Открываем карточку…', 'Загружаем сохранённые данные.') : r.id ? patient && patient.id === r.id ? detail(r.tab) : empty('Карточка недоступна', 'Вернитесь к списку или обновите страницу.') + `<a class="button secondary" href="#/patients">К пациентам</a>` : listPage()}<footer class="footer-note">Учебный кабинет · вымышленные данные. Медицинские решения принимает врач; записи не просматриваются в реальном времени.</footer></main></div></div>`;
+  if (r.tab === 'plan' || r.tab === 'support') { const review = document.querySelector('#review-card'); if (review) review.parentElement.prepend(review); }
   if (busy) document.querySelectorAll('button[data-action="save-draft"],button[data-action="confirm-plan"],button[data-action="viewed"]').forEach(el => { el.disabled = true; });
   enhanceVoiceFields(app, extra => openDoctorVoice(extra));
+  if (r.tab === 'support' || recommendationsOpen('doctor')) showDoctorRecommendations();
   logPresented();
 }
 function listPage() {
@@ -75,9 +77,18 @@ function rosterRows() {
   return `<table class="roster"><thead><tr><th>Пациент</th><th>Последние анкеты</th><th>Дневник</th><th>Наблюдение</th><th>Следующий контакт</th><th><span class="sr-only">Открыть карточку</span></th></tr></thead><tbody>${rows.map(p => `<tr data-patient="${p.id}"><td><div class="patient-name"><span class="patient-avatar">${h(initials(p))}</span><div><strong>${h(p.identity.name)}</strong><span class="subtle-label">${h(p.identity.code)} · ${p.identity.age ? p.identity.age + ' лет' : '18+'}${p.live ? ' · связан с миниаппом' : ''}</span></div></div><span class="subtle-label">${h(p.stage)}</span></td><td data-label="Последние анкеты">${p.lastScores ? `<span class="score-inline">${p.lastScores.phq.score}<small> /27 PHQ-9</small></span><span class="score-inline">${p.lastScores.gad.score}<small> /21 GAD-7</small></span><span class="subtle-label">${h(dateLabel(p.lastAssessmentDate))}</span>` : `<span>${p.draft ? `Черновик: ${p.draft.phq}/9 и ${p.draft.gad}/7` : 'Ещё нет'}</span><span class="subtle-label">Суммы не рассчитаны</span>`}</td><td data-label="Дневник">${h(coverage(p))}<div class="coverage-bar"><div class="coverage-segments">${Array.from({length:p.stats.expected},(_,i)=>`<span class="${i < p.stats.recorded ? '' : 'blank'}"></span>`).join('')}</div></div><span class="subtle-label">${p.latestAt ? `${p.daysAgo === 0 ? 'Сегодня' : p.daysAgo + ' дн. назад'} · последние данные` : 'Записей пока нет'}</span></td><td data-label="Наблюдение"><div class="flag-list">${p.needs.slice(0,2).map(f=>`<span class="flag ${f.tone}">${h(f.text)}</span>`).join('') || '<span class="flag">Данные доступны для беседы</span>'}</div><span class="subtle-label">${h(p.reviewStatus)}</span></td><td data-label="Следующий контакт">${p.appointment.date ? `${h(dateLabel(p.appointment.date))} · ${h(p.appointment.time)}` : 'Не указан'}<span class="subtle-label">${p.appointment.confirmed ? 'Из демоплана врача' : 'Со слов пациента'}</span></td><td><a class="roster-open" href="${pathFor(p.id)}" aria-label="Открыть: ${h(p.identity.name)}">Открыть →</a></td></tr>`).join('')}</tbody></table>`;
 }
 function detail(tab) {
-  const p = patient;
-  return `<a class="text-link detail-back" href="#/patients">${icon('back')}Все пациенты</a><div class="patient-heading"><div class="identity-line"><span class="patient-avatar">${h(initials(p))}</span><div><h1 tabindex="-1">${h(p.identity.name)}</h1><div class="patient-meta">${h(p.identity.code)} · ${p.identity.age ? p.identity.age + ' лет' : '18+'} · ${h(p.stage)}${p.safety.needsClarification?' · Есть ответы о безопасности: уточнить при контакте':''}</div></div></div><div class="row">${voiceButton('Записать беседу')}${button('Обновить', 'refresh')}${button('Отметить просмотр', 'viewed')}${tab !== 'summary' ? `<a class="button" href="${pathFor(p.id,'summary')}">Сводка к приёму</a>` : ''}</div></div><div class="sync-line"><span>Последние данные: <strong>${p.latestAt ? h(when(p.latestAt)) : 'ещё не поступили'}</strong> · ${h(coverage(p))}${p.stats.baselineRecorded ? ' + день 0' : ''}</span><span class="${syncError ? 'sync-error' : ''}" id="sync-status">${syncError ? 'Обновление не удалось. Показаны сохранённые данные.' : `Загружено ${lastSync ? new Intl.DateTimeFormat('ru',{hour:'2-digit',minute:'2-digit'}).format(lastSync) : 'сейчас'}`}</span></div><nav class="detail-tabs" aria-label="Разделы карточки">${tabs.map(([v,t,i])=>`<a href="${pathFor(p.id,v)}" ${tab===v?'aria-current="page"':''}>${icon(i)}${t}</a>`).join('')}</nav>${p.dataChangedSinceReview ? notice('После подтверждения изменилась дата или данные наблюдения', 'Прежняя запись врача сохранена. Просмотрите изменения перед новым решением.') + '<div class="section-gap"></div>' : ''}${({voice:()=>voiceNotesSection(patient.voiceNotes || [],true),overview,assessments,diary,dynamics,plan,summary,support:()=>renderDoctorSupport(patient,therapyDrafts.get(draftKey(patient))?.values)}[tab])()}`;
+  const p=patient,visitTab=['plan','voice','summary','support'].includes(tab),active=visitTab?'plan':tab;
+  const visitNav=visitTab?`<nav class="visit-subnav" aria-label="Работа на приёме">${[['plan','Запись и план'],['voice','Записи бесед'],['summary','Сводка и экспорт']].map(([id,label])=>`<a href="${pathFor(p.id,id)}" ${(tab==='support'?'plan':tab)===id?'aria-current="page"':''}>${label}</a>`).join('')}</nav>`:'';
+  return `<a class="text-link detail-back" href="#/patients">${icon('back')}Все пациенты</a><div class="patient-heading"><div class="identity-line"><span class="patient-avatar">${h(initials(p))}</span><div><h1 tabindex="-1">${h(p.identity.name)}</h1><div class="patient-meta">${h(p.identity.code)} · ${p.identity.age?p.identity.age+' лет':'18+'} · ${h(p.stage)}${p.safety.needsClarification?' · Уточнить безопасность':''}</div></div></div><div class="row">${voiceButton('Записать беседу')}${button('Рекомендации','open-recommendations')}${button('↻','refresh',true,'aria-label="Обновить" title="Обновить данные"')}</div></div><div class="sync-line"><span>Последние данные: <strong>${p.latestAt?h(when(p.latestAt)):'ещё не поступили'}</strong> · ${h(coverage(p))}${p.stats.baselineRecorded?' + день 0':''}</span><span class="${syncError?'sync-error':''}" id="sync-status">${syncError?'Не удалось обновить. Показаны сохранённые данные.':`Загружено ${lastSync?new Intl.DateTimeFormat('ru',{hour:'2-digit',minute:'2-digit'}).format(lastSync):'сейчас'}`}</span></div><nav class="detail-tabs" aria-label="Разделы карточки">${tabs.map(([id,label,i])=>`<a href="${pathFor(p.id,id)}" ${active===id?'aria-current="page"':''}>${icon(i)}${label}</a>`).join('')}</nav>${visitNav}${p.dataChangedSinceReview?notice('После подтверждения появились изменения','Прежняя врачебная запись сохранена. Проверьте новые данные перед решением.'):''}${({voice:()=>voiceNotesSection(p.voiceNotes||[],true),overview,assessments,diary,dynamics,plan,summary,support:plan}[tab])()}`;
 }
+function showDoctorRecommendations() {
+  if(!patient)return;
+  const recommendationPatientId=patient.id;
+  const panel=openRecommendations({key:'doctor',title:'Рекомендации к приёму',description:patient.identity.name+' · '+patient.identity.code+'. Подсказки и лекарственная справка; решения принимает врач.',content:aiSummary(patient)+`<details class="recommendation-details"><summary>Клинические вопросы и проверка терапии</summary>${renderDoctorSupport(patient,therapyDrafts.get(draftKey(patient))?.values)}</details>`,closed:()=>{captureTherapy();if(route().tab==='support'&&route().id===recommendationPatientId)location.hash=pathFor(recommendationPatientId,'plan');}});
+  enhanceVoiceFields(panel,extra=>openDoctorVoice(extra));
+  void logPresented('support');
+}
+
 function safetyCard(p) {
   const answer = p.safety.phq9;
   return `<section class="card"><div class="card-head"><h2>Ответы о безопасности</h2>${p.safety.needsClarification ? '<span class="pill red">Уточнить при контакте</span>' : ''}</div><dl class="fact-list">${field('Последний пункт 9 PHQ-9', answer === null ? 'Ответа пока нет' : `${answer}/3 · ${FREQUENCY[answer]}`)}${field('Дополнительный ответ', p.safety.events.length ? p.safety.events.map(e => `${dateLabel(e.at)}: ${e.level === 'contact' ? '«Сейчас нет»' : e.level === 'urgent' ? '«Да / не уверен(а)»' : '«Не хочу отвечать»'}`).join('\n') : 'Отдельного ответа нет')}${field('Запись врача', p.safety.clinicianNote || p.safety.currentAssessment)}</dl><p class="small muted section-gap">Ответ на один пункт и сумма анкеты не определяют уровень риска. «Сейчас нет» и отсутствие записи не исключают риск; нужна клиническая беседа.</p>${source('Исходные ответы сохранены. Открытие карточки не считается оценкой безопасности.')}</section>`;
@@ -115,7 +126,7 @@ function diaryTable(p) {
   return `<div class="table-scroll"><table class="daily-table"><thead><tr><th>День / дата</th><th>Настроение 0–10</th><th>Тревога 0–10</th><th>Сон, ч</th><th>Обычные дела</th><th>Изменение</th><th>Заметка</th></tr></thead><tbody>${p.diary.map(e=>`<tr><td>${e.day} · ${h(numericDate(e.date))}${e.retrospective?' *':''}</td><td>${e.mood}</td><td>${e.anxiety}</td><td>${e.sleep===null?'нет данных':n(e.sleep)}</td><td>${h(FUNCTION_LABELS[e.function])}</td><td>${h(e.change||'не спрашивалось')}</td><td class="note-cell">${h(e.note||'—')}</td></tr>`).join('')||'<tr><td colspan="7">Записей пока нет</td></tr>'}</tbody></table></div>`;
 }
 function lineChart(rows, {key='value',max=10,labels,events=[],label='График',color='#527c62',xLabels}={}) {
-  const W=660,H=210,L=36,R=18,T=18,B=34, PW=W-L-R,PH=H-T-B;
+  const W=window.innerWidth<600?330:660,H=210,L=36,R=18,T=18,B=34, PW=W-L-R,PH=H-T-B;
   const x=i=>L+(rows.length<2?PW/2:i/(rows.length-1)*PW), y=v=>T+PH-(v/max)*PH;
   let segments=[],current=[];
   rows.forEach((r,i)=>{if(Number.isFinite(r[key])) current.push([x(i),y(r[key])]);else if(current.length){segments.push(current);current=[];}}); if(current.length)segments.push(current);
@@ -143,7 +154,7 @@ function patientPlan(v) {
 }
 function summary() {
   const p=patient;
-  return `<div class="summary-actions">${button(icon('download')+' Скачать TXT','download-summary')}${button('Копировать сводку','copy-summary')}${button('Печать / сохранить PDF','print')}${button('Скачать дневник CSV','csv')}</div>${aiSummary(p)}<section class="card"><div class="summary-top"><h2>Полная сводка из сохранённых полей</h2><p class="small muted section-gap">Самоотчёт, пропуски и врачебная запись разделены. Полная версия содержит внутреннюю запись врача; для пациента предназначен только подтверждённый план.</p></div><pre class="summary-sheet" id="summary-content">${h(p.summary)}</pre></section>`;
+  return `<div class="summary-actions">${button(icon('download')+' Скачать TXT','download-summary')}${button('Копировать сводку','copy-summary')}${button('Печать / сохранить PDF','print')}${button('Скачать дневник CSV','csv')}</div><section class="card"><div class="summary-top"><h2>Полная сводка из сохранённых полей</h2><p class="small muted section-gap">Самоотчёт, пропуски и врачебная запись разделены. Полная версия содержит внутреннюю запись врача; для пациента предназначен только подтверждённый план.</p></div><pre class="summary-sheet" id="summary-content">${h(p.summary)}</pre></section>`;
 }
 function aiSummary(p) {
   if(workspaceMode!=='clinic')return `<section class="card"><h2>Краткая сводка к беседе</h2><p>Генерация доступна для подключённого тестового профиля после входа в кабинет.</p></section>`;
@@ -227,15 +238,15 @@ function confirmation() {
   if(patient.safety.needsClarification&&!v.safetyNote?.trim()){toast('Внесите результат уточнения безопасности и согласованные действия.',true);revealViewportElement(document.querySelector('[name="safetyNote"]'));return;}
   showModal('Проверить план перед подтверждением',`<p>Подтверждение создаёт новую версию. ${patient.live?'Следующие поля появятся у пациента в миниаппе.':'План сохранится только в этой вымышленной карточке.'} Внутренняя клиническая запись и уточнение безопасности пациенту не передаются.</p>${patientPlan(v)}<label class="confirm-check"><input type="checkbox" id="reviewed-check">Я просмотрел(а) актуальные данные, уточнил(а) вопросы при беседе и проверил(а) текст плана. В этом прототипе подтверждение только демонстрационное.</label><p id="confirmation-error" class="small sync-error" role="alert"></p><div class="row">${button('Вернуться к записи','close-modal')}${button('Подтвердить демоплан','publish-plan',false)}</div>`);
 }
-async function logPresented() {
+async function logPresented(view = route().tab) {
   const r=route();if(!patient||r.id!==patient.id||loading||document.hidden||workspaceMode==='clinic'&&!clinicSession?.authenticated)return;
-  const key=[patient.id,r.tab,patient.sourceRevision,patient.review.revision].join(':');if(presented.has(key))return;
+  const key=[patient.id,view,patient.sourceRevision,patient.review.revision].join(':');if(presented.has(key))return;
   presented.add(key);
-  try {await requestJSON(`${apiBase()}/${patient.id}/events`,{method:'POST',headers:{'Content-Type':'application/json','X-Demo-Client':'1'},body:JSON.stringify({view:r.tab,sourceRevision:patient.sourceRevision})});}
+  try {await requestJSON(`${apiBase()}/${patient.id}/events`,{method:'POST',headers:{'Content-Type':'application/json','X-Demo-Client':'1'},body:JSON.stringify({view,sourceRevision:patient.sourceRevision})});}
   catch{presented.delete(key);}
 }
 async function load({silent=false,force=false}={}) {
-  if(loading||busy||modal.open||!clinicSession||workspaceMode==='clinic'&&!clinicSession.authenticated)return;
+  if(loading||busy||modal.open||silent&&recommendationsOpen('doctor')||!clinicSession||workspaceMode==='clinic'&&!clinicSession.authenticated)return;
   const r=route(),version=++loadVersion;loading=true;
   if(!silent){if(!patient||patient.id!==r.id){patient=null;render();}document.querySelector('#request-status').textContent='Обновляем данные…';document.querySelector('#request-status').hidden=false;}
   try {
@@ -274,6 +285,7 @@ document.addEventListener('submit',async event=>{
 document.addEventListener('click',async event=>{
   const el=event.target.closest('[data-action]');if(!el)return;
   const action=el.dataset.action;
+  if(action==='open-recommendations'){showDoctorRecommendations();return;}
   if(action==='close-modal'){modal.close();return;}
   if(action==='demo-workspace'||action==='clinic-workspace'){if(busy)return;if([...formDrafts.values()].some(v=>v.dirty)){toast('Сохраните черновик перед сменой кабинета.',true);return;}clearPrivateView();workspaceMode=action==='demo-workspace'?'demo':'clinic';location.hash='#/patients';render();await load({force:true});return;}
   if(action==='clinic-logout'){if(busy)return;if([...formDrafts.values()].some(v=>v.dirty)){toast('Сохраните черновик перед выходом.',true);return;}try{await requestJSON('/api/clinic/logout',{method:'POST',headers:{'Content-Type':'application/json','X-Demo-Client':'1'},body:'{}'});authExpired();}catch(error){toast(error.message,true);}return;}
@@ -289,7 +301,7 @@ document.addEventListener('click',async event=>{
     const append=(a,b)=>a?.includes(b)?a:[a,b].filter(Boolean).join('\n');
     const values={...old,watch:append(old.watch,watch),earlyContact:append(old.earlyContact,early)};
     if(values.watch.length>1000||values.earlyContact.length>1000){toast('В полях уже много текста. Добавьте наблюдение вручную.',true);return;}
-    formDrafts.set(draftKey(patient),{values,dirty:true});location.hash=pathFor(patient.id,'plan');toast('Наблюдение добавлено в несохранённый черновик. Проверьте и заполните клинический план.');return;
+    formDrafts.set(draftKey(patient),{values,dirty:true});closeRecommendations();location.hash=pathFor(patient.id,'plan');toast('Наблюдение добавлено в несохранённый черновик. Проверьте и заполните клинический план.');return;
   }
   if(action==='generate-ai'){await generateAi();return;}
   if(action==='download-ai'){if(patient?.ai?.draft){download(aiText(patient),`kratkaya-svodka-${patient.identity.code}.txt`);toast('Черновик сохранён. Проверьте факты перед использованием.');}return;}
@@ -300,7 +312,7 @@ document.addEventListener('click',async event=>{
   if(action==='publish-plan'){if(!document.querySelector('#reviewed-check').checked){document.querySelector('#confirmation-error').textContent='Подтвердите, что данные и план просмотрены.';return;}el.disabled=true;el.dataset.locked='true';await saveReview('confirm',planValues(patient),true);return;}
   if(action==='viewed'){el.disabled=true;el.dataset.locked='true';captureForm();await saveReview('viewed');return;}
 });
-window.addEventListener('hashchange',()=>{captureForm();assessmentId=null;selectedDay=null;const r=route();if(patient?.id!==r.id){patient=null;aiError='';}render();load();window.scrollTo({top:0,behavior:'instant'});document.querySelector('h1')?.focus({preventScroll:true});});
+window.addEventListener('hashchange',()=>{captureForm();if(route().tab!=='support')closeRecommendations();assessmentId=null;selectedDay=null;const r=route();if(patient?.id!==r.id){patient=null;aiError='';}render();load();window.scrollTo({top:0,behavior:'instant'});document.querySelector('h1')?.focus({preventScroll:true});});
 window.addEventListener('beforeunload',event=>{if([...formDrafts.values()].some(v=>v.dirty)){event.preventDefault();event.returnValue='';}});
 window.addEventListener('focus',()=>load({silent:true}));
 window.addEventListener('online',()=>load({silent:true}));
@@ -316,7 +328,7 @@ startViewport();
 async function openDoctorVoice(extra = {}) {
   if (!patient) { toast('Сначала выберите пациента.', true); return; }
   const targetId = patient.id, targetEpisode = patient.episodeId;
-  await openVoice({ scope: 'psychiatrist', endpoint: apiBase() + '/' + targetId + '/voice', ownerLabel: patient.identity.name + ' · ' + patient.identity.code, isCurrent: () => patient?.id === targetId && patient.episodeId === targetEpisode, onError: text => toast(text, true), onSaved: async () => { if (patient?.id === targetId && patient.episodeId === targetEpisode) await load({ force: true }); }, ...extra });
+  await openVoice({ scope: 'psychiatrist', savedHref: pathFor(targetId,'voice'), endpoint: apiBase() + '/' + targetId + '/voice', ownerLabel: patient.identity.name + ' · ' + patient.identity.code, isCurrent: () => patient?.id === targetId && patient.episodeId === targetEpisode, onError: text => toast(text, true), onSaved: async () => { if (patient?.id === targetId && patient.episodeId === targetEpisode) await load({ force: true }); }, ...extra });
 }
 document.addEventListener('click', event => {
   if (event.target.closest('[data-voice-start]')) { event.preventDefault(); void openDoctorVoice(); }

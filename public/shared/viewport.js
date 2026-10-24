@@ -2,8 +2,8 @@
 // stay in their original forms; nothing is cloned, discarded or saved locally.
 const positions = new Map();
 const revealers = new WeakMap();
-const transparent = '.home-grid,.two-col,.stack,.overview-grid,.detail-grid,.clinical-grid,.handoff-layout,.handoff-main,.question-shell,.settings-list,.checklist-main,.checklist-columns';
-const pinned = '.support-tabs,.page-heading,.lead-row,.detail-back,.patient-heading,.sync-line,.detail-tabs,.modal-head,.dialog-header,.back-button,.intro,.compact-actions';
+const transparent = '.home-grid,.two-col,.stack,.overview-grid,.detail-grid,.clinical-grid,.handoff-layout,.handoff-main,.question-shell,.settings-list,.checklist-main,.checklist-columns,.checklist-items,.workspace';
+const pinned = '.support-tabs,.page-heading,.lead-row,.detail-back,.patient-heading,.sync-line,.detail-tabs,.visit-subnav,.modal-head,.dialog-header,.back-button,.intro,.compact-actions';
 const repeated = 'h1,h2,h3,legend,.group-title,thead,.card-head,.card-header,.roster-count,.question-window';
 const noSplit = 'button,a,input,textarea,select,label,svg,img,hr,summary,.roster tr,.row,.form-row,.metric-grid,.score-comparison,.option-list,.number-options,.tab-switch,.range-labels';
 
@@ -143,6 +143,7 @@ export function startViewport({ mainSelector = 'main.main', watchSelector = '#ap
       if (main && !skip(main)) paginate(main, `${location.pathname}:${location.hash}`);
       else if (main?.classList.contains('viewport-workspace')) restore(main);
       for (const dialog of document.querySelectorAll('dialog')) {
+        if (dialog.dataset.managedDialog) continue;
         if (!dialog.open) { if (dialog.classList.contains('viewport-workspace')) restore(dialog); continue; }
         if (dialog.classList.contains('viewport-workspace') || dialog.scrollHeight > dialog.clientHeight + 2) paginate(dialog, `dialog:${dialog.id}`);
       }

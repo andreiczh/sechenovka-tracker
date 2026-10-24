@@ -1,0 +1,147 @@
+/* Shared type and layout tokens. System fonts work offline and in Telegram. */
+:root{--ui-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;--ui-text:15px;--ui-small:13px;--ui-heading:26px;--ink:#24372e;--muted:#5d6d64;--line:#dfe7e1;--green:#416d57;--green-soft:#f0f5f1;--red:#985b51;--red-soft:#fbf1ee;font-family:var(--ui-font);letter-spacing:normal}
+body{font-family:var(--ui-font);font-size:var(--ui-text);line-height:1.5;color:var(--ink)}
+button,input,textarea,select,dialog{font-family:var(--ui-font);letter-spacing:normal}
+h1,h2,h3{letter-spacing:-.025em;font-weight:600;line-height:1.3}
+.card,.clinician-app .card,.viewport-workspace .card{border-radius:12px;padding:20px;box-shadow:none}
+.card h2,.clinician-app .card h2,.viewport-workspace .card h2{font-size:19px;font-weight:600;letter-spacing:-.025em}
+.card h3,.clinician-app .card h3{font-size:16px;font-weight:600}
+.card p,.clinician-app .card p,.notice,.viewport-workspace .notice,.viewport-workspace .card p,.review-copy{font-size:14px;line-height:1.55}
+.small,.muted,.source-label,.subtle-label,.private-label,.card .small,.card .source-label,.card .subtle-label{font-size:13px;line-height:1.5}
+.eyebrow,.viewport-workspace .page-heading .eyebrow{font-size:12px;letter-spacing:.04em;margin-bottom:6px}
+.page-heading h1,.clinician-app .page-heading h1,.viewport-workspace .page-heading h1{font-size:26px;letter-spacing:-.04em}
+.page-heading p,.clinician-app .page-heading p,.viewport-workspace .page-heading p{font-size:14px;margin-top:5px;line-height:1.5}
+.button,.topbar .button,.viewport-workspace .button,.voice-trigger{font-size:14px;min-height:40px;padding:9px 14px;line-height:1.4;border-radius:8px;font-weight:500}
+.text-link,.settings-link,.card .text-link{font-size:14px;line-height:1.5}
+.pill,.demo-badge{font-size:12px;padding:4px 9px}
+.form-field,#therapy-context-form .form-field,.viewport-workspace .form-field{font-size:14px;line-height:1.5;gap:6px}
+input,textarea,select{font-size:15px}
+.main-shell{margin-left:0!important}
+.sidebar{display:none!important}
+.topbar{padding:0 28px!important;min-height:60px!important;height:60px!important;gap:16px}
+.topbar .mobile-brand{display:flex;font-size:16px;white-space:nowrap;gap:8px}
+.topbar .mobile-brand img{width:30px;height:30px}
+.topbar .topbar-left,.doctor-user{display:none}
+.topbar-right{gap:10px;min-width:0}
+.topbar-right time{font-size:13px}
+.topbar .mobile-settings{display:flex;align-items:center;padding:9px}
+.app-nav{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line);padding:0 28px;flex:none;min-height:48px;overflow-x:auto;background:white}
+.app-nav a,.app-nav button{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 14px;border:0;border-bottom:2px solid transparent;white-space:nowrap;font-size:14px;line-height:1.5;color:var(--muted);background:none}
+.app-nav a[aria-current="page"]{color:var(--green);border-color:var(--green);font-weight:600}
+.app-nav .icon{width:17px;height:17px}
+.mobile-nav{display:none!important}
+.main-shell>.main{padding:18px 28px 9px!important}
+.viewport-workspace .footer-note{font-size:12px;line-height:1.4;padding:7px 0 0;gap:12px}
+.viewport-workspace .footer-note button{font-size:12px;white-space:normal}
+.viewport-workspace .footer-note span{font-size:12px;line-height:1.4}
+.task-meta,.task-alt{font-size:13px}
+.viewport-controls{height:40px;font-size:13px;gap:10px}
+.viewport-controls select{font-size:13px;min-height:34px;height:34px}
+.viewport-controls button{width:36px;height:34px;min-height:34px;font-size:18px}
+.viewport-content{gap:16px;align-items:start}
+.viewport-content>.notice-stack{grid-column:1/-1;display:grid;gap:8px}
+.notice-stack .notice{padding:10px 14px}
+.entry-metrics>div>span,.entry-metrics b>span,.entry-head small,.compact-metrics span,.metric-box small,.chart-desc,.chart-caption,.scale-window,.score-baseline,.score-label{font-size:13px!important;line-height:1.45}
+.entry-metrics b{font-size:19px}
+.viewport-workspace .card-header,.viewport-workspace .card-head{margin-bottom:14px;gap:12px}
+.viewport-workspace .question-card h1{font-size:24px;line-height:1.4}
+.question-window,.question-footnote,.question-top,.question-instruction,.viewport-workspace .question-window,.viewport-workspace .question-footnote{font-size:14px;line-height:1.5}
+.viewport-workspace .answer-button{font-size:15px;padding:12px 15px;min-height:46px}
+.question-actions .text-link{font-size:14px}
+.viewport-workspace .welcome h2{font-size:24px}
+.viewport-workspace .welcome-steps p{font-size:14px}
+.score-value,.big-number,.clinical-score .big-number,.score-pair .big-number{font-size:38px!important;line-height:1.2}
+.stat-tile strong{font-size:28px}
+.compact-metrics b,.metric-box strong{font-size:26px}
+.patient-heading h1{font-size:24px!important}
+.patient-meta,.sync-line,.viewport-workspace .sync-line{font-size:13px;line-height:1.4}
+.patient-heading{gap:16px;align-items:center;margin:6px 0 10px}
+.patient-heading .row{gap:8px}
+.detail-back{font-size:13px;margin-bottom:6px}
+.detail-tabs,.viewport-workspace .detail-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;flex-wrap:nowrap;min-height:46px;margin:8px 0 12px;padding:0}
+.detail-tabs a,.viewport-workspace .detail-tabs a{padding:10px 16px;font-size:14px;gap:7px;white-space:nowrap;justify-content:center;line-height:1.5}
+.metric-switch,.tab-switch{display:inline-flex!important;gap:4px!important;padding:4px!important;border-radius:9px!important;background:#f1f5f2!important;flex-wrap:nowrap!important;width:auto!important;max-width:100%}
+.metric-switch button,.tab-switch button{font-size:14px!important;padding:8px 12px!important;min-height:36px;line-height:1.4;white-space:nowrap;border-radius:6px!important}
+.metric-switch button[aria-pressed=true],.tab-switch button.active{background:white;box-shadow:0 1px 3px #24432d12;color:var(--green)}
+.clinician-app .roster td,.clinician-app .roster th,.viewport-workspace .roster td{font-size:14px;padding:14px 12px}
+.viewport-workspace .roster .subtle-label{font-size:12px}
+.viewport-workspace .roster .flag,.flag{font-size:12px;line-height:1.5}
+.roster-count,.viewport-workspace .roster-count{font-size:13px;padding:12px 16px}
+.toolbar label,.answer-table,.daily-table,.data-table,.fact-list dt,.fact-list dd{font-size:14px!important}
+.visit-tools{display:flex;align-items:center;gap:10px;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:#f8faf8;margin-bottom:16px;flex-wrap:wrap}
+.visit-tools>p{font-size:14px;color:var(--muted);margin:0 auto 0 0}
+.visit-tools button,.visit-tools a{font-size:14px}
+.workspace-label{font-size:14px;color:var(--muted);margin-right:auto}
+.workspace-menu{position:relative;font-size:14px}
+.workspace-menu summary{cursor:pointer;padding:9px 12px;list-style:none;border:1px solid var(--line);border-radius:8px}
+.workspace-menu>div{position:absolute;right:0;top:calc(100% + 8px);min-width:220px;z-index:40;background:white;border:1px solid var(--line);border-radius:10px;padding:6px;box-shadow:0 10px 35px #263c2d1a;display:grid}
+.workspace-menu>div a,.workspace-menu>div button{font-size:14px;line-height:1.5;text-align:left;padding:10px;border-radius:6px}
+.workspace-menu>div a:hover,.workspace-menu>div button:hover{background:var(--green-soft)}
+.recommendation-details>summary{cursor:pointer;font-weight:600;font-size:17px;padding:16px 0;border-top:1px solid var(--line);margin-bottom:12px}
+.bot-recommendations-link{display:block;padding:10px;margin-top:10px;border:1px solid #cfdfd3;border-radius:8px;background:white;color:var(--green);font-size:14px;font-weight:600;text-decoration:none}
+.chat-messages .message,.reply-keyboard button,.bot-explainer p{font-size:14px;line-height:1.5}
+@media(max-width:700px){.workspace-label{display:none}}
+.visit-subnav{display:flex;gap:5px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+.visit-subnav a{font-size:14px;padding:10px 16px;border-bottom:2px solid transparent}
+.visit-subnav a[aria-current=page]{color:var(--green);border-color:var(--green);font-weight:600}
+.recommendations-dialog{width:min(980px,calc(100vw - 32px));height:min(820px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);max-width:none;border:1px solid var(--line);border-radius:16px;padding:0;background:#fff;color:var(--ink);box-shadow:0 24px 100px #183b2a33;overflow:hidden;font:15px/1.55 var(--ui-font)}
+.recommendations-dialog[open]{display:flex;flex-direction:column}
+.recommendations-dialog::backdrop,.voice-dialog::backdrop{background:#172d245c;backdrop-filter:blur(3px)}
+.recommendations-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--line);gap:16px;flex:none}
+.recommendations-head h2{font-size:22px;margin:0}
+.recommendations-head p{font-size:14px;color:var(--muted);margin:5px 0 0;line-height:1.5}
+.window-close{flex:none;display:grid;place-items:center;width:38px;height:38px;min-height:38px;border:1px solid var(--line);border-radius:9px;font:24px var(--ui-font);background:white;color:var(--muted);cursor:pointer}
+.recommendations-body{overflow:auto;min-height:0;padding:24px;overscroll-behavior:contain}
+.recommendations-body>.page-heading{display:none}
+.recommendations-body .two-col,.recommendations-body .detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.recommendations-body .stack{display:grid;gap:16px;align-content:start}
+.recommendations-body .card{padding:20px;margin:0 0 16px}
+.recommendations-body .card p{font-size:14px}
+.recommendations-body .support-tabs a{font-size:14px;padding:10px}
+.recommendations-body .small,.recommendations-body .support-sources,.recommendations-body .support-sources a,.recommendations-body .support-summary-link small{font-size:13px}
+.recommendations-body .ai-summary{margin-bottom:18px}
+.recommendations-body .support-step .row{margin-top:14px}
+.recommendations-body h3{font-size:17px;margin:18px 0 10px}
+.recommendations-body p+p{margin-top:10px}
+.recommendations-body .section-gap{margin-top:16px}
+.modal,.info-dialog{font-family:var(--ui-font);font-size:15px;line-height:1.55}
+.modal h2,.info-dialog h2{font-size:22px}
+.modal p,.info-dialog p{font-size:14px;line-height:1.55}
+/* GP: full-size labels; use the existing page controls on short screens. */
+.vop-page .site-header{height:60px;min-height:60px;gap:20px}
+.vop-page .brand{font-size:16px}
+.vop-page .brand img{width:30px;height:30px}
+.vop-page .header-nav{font-size:14px;gap:24px}
+.vop-page .intro h1,.vop-page .viewport-head .intro h1{font-size:26px;line-height:1.25;letter-spacing:-.035em}
+.vop-page .intro .eyebrow,.vop-page .viewport-head .intro .eyebrow{font-size:12px}
+.vop-page .intro-text,.vop-page .viewport-head .intro-text{font-size:14px;line-height:1.5}
+.vop-page .section-topline h2{font-size:17px}
+.vop-page .section-description,.vop-page .group-title{font-size:13px}
+.vop-page .check-item,.vop-page .viewport-workspace .check-item{padding:12px;min-height:64px;gap:10px}
+.vop-page .check-item strong{font-size:14px;line-height:1.35}
+.vop-page .check-item .item-description{font-size:13px;line-height:1.4}
+.vop-page .selection-summary,.vop-page .demo-rule{font-size:13px;line-height:1.5}
+.vop-page .button-hint,.vop-page .count-caption,.vop-page .manual-button{font-size:12px;line-height:1.5}
+.vop-page .decision-panel h2{font-size:18px}
+.vop-page .decision-panel .button{font-size:14px;min-height:40px}
+.vop-page .count-display>#selected-count{font-size:44px}
+.vop-page .safety-heading h2{font-size:14px}
+.vop-page .safety-heading p,.vop-page .safety-item strong,.vop-page .safety-item .item-description,.vop-page .safety-notice,.vop-page .safety-notice p{font-size:12px;line-height:1.4}
+.vop-page .site-footer .footer-actions .text-button,.vop-page .site-footer>div>span,.vop-page .site-footer>div>p{font-size:12px}
+.vop-page .site-footer .storage-note,.vop-page .site-footer>div:first-child{display:none}
+.vop-page .doctor-script{font-size:18px;line-height:1.6}
+.vop-page .viewport-with-side .bot-panel .bot-stage-note,.vop-page .viewport-with-side .bot-panel .bot-footnote,.vop-page .viewport-with-side .bot-links .text-button,.vop-page .viewport-with-side .bot-panel .qr-caption{font-size:12px;line-height:1.45}
+.vop-page .compact-actions{font-size:14px}
+.vop-page .compact-actions button{font-size:13px;min-height:36px}
+.vop-page #conversation-button{display:none}
+.vop-page .demo-rule .rule-label{display:none}
+.vop-page .viewport-workspace .section-topline,.vop-page .viewport-workspace .section-description{grid-column:1/-1;height:auto}
+.vop-page .viewport-workspace .section-topline>div{display:flex;align-items:center;gap:10px}
+.vop-page .viewport-workspace .checklist-group{min-width:0}
+.vop-page .viewport-workspace .decision-panel,.vop-page .viewport-workspace .safety-section{grid-column:1/-1}
+@media(min-width:1000px) and (min-height:700px){.vop-page .intro .eyebrow{margin-bottom:5px}.vop-page .intro h1{margin:4px 0}.vop-page .intro-text{font-size:13px}.vop-page .checklist-group .group-title{font-size:12px;padding-bottom:6px}.vop-page .check-item,.vop-page .viewport-workspace .check-item{min-height:0;padding:8px 10px}.vop-page .checklist-items{gap:7px}.vop-page .safety-section{grid-template-columns:200px 1fr;padding:9px 12px}.vop-page .decision-panel{padding:16px}.vop-page .demo-rule{font-size:12px}.vop-page .workspace{gap:12px 18px}.vop-page main.wrap{padding-top:12px}.vop-page .section-description{font-size:12px;line-height:1.4}.vop-page .section-topline{height:28px}}
+@media(max-width:900px){.topbar{padding:0 16px!important}.topbar .brand{font-size:14px}.app-nav{padding:0 12px}.app-nav a,.app-nav button{font-size:13px;padding:11px 12px}.main-shell>.main{padding:14px 16px 8px!important}.patient-heading{align-items:flex-start;flex-direction:column}.sync-line{flex-wrap:wrap}.detail-tabs a,.viewport-workspace .detail-tabs a{padding:10px 12px}.topbar-right time{display:none}.metric-switch{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));width:100%!important}.card-head:has(.metric-switch){align-items:stretch;flex-direction:column}.recommendations-body .two-col,.recommendations-body .detail-grid{grid-template-columns:1fr}}
+@media(max-width:600px){:root{--ui-text:15px}.topbar{height:54px!important;min-height:54px!important;padding:0 12px!important}.topbar .brand span{max-width:150px;overflow:hidden;text-overflow:ellipsis}.topbar .demo-badge{display:none}.topbar-right{gap:5px}.topbar .button{font-size:13px;padding:8px 10px;min-height:36px}.topbar .mobile-brand{font-size:14px}.app-nav{padding:0 4px;min-height:44px;gap:0}.app-nav a,.app-nav button{font-size:13px;padding:10px}.app-nav .icon{display:none}.main-shell>.main{padding:12px 12px 6px!important}.page-heading h1,.viewport-workspace .page-heading h1,.clinician-app .page-heading h1{font-size:23px}.page-heading p,.viewport-workspace .page-heading p{font-size:14px}.viewport-workspace .card,.clinician-app .card{padding:16px}.viewport-workspace .card h2,.clinician-app .card h2{font-size:18px}.viewport-workspace .footer-note{font-size:11px;gap:7px}.viewport-workspace .footer-note button{font-size:11px}.viewport-controls{gap:6px}.viewport-controls select{font-size:12px}.recommendations-dialog{width:calc(100vw - 12px);height:calc(100dvh - 12px);max-height:none;border-radius:12px}.recommendations-head{padding:16px}.recommendations-head h2{font-size:20px}.recommendations-body{padding:16px}.patient-heading .voice-trigger span{display:inline}.patient-heading .voice-trigger{width:auto;height:auto;padding:9px 12px}.patient-heading .row{flex-wrap:wrap}.patient-meta,.viewport-workspace .sync-line{font-size:12px}.vop-page .site-header{height:auto;min-height:56px;gap:8px;flex-wrap:wrap;padding-block:8px}.vop-page .header-nav{font-size:13px;gap:15px}.vop-page .brand{font-size:14px}.vop-page .prototype-label{display:none}.vop-page .intro h1,.vop-page .viewport-head .intro h1{font-size:23px}.vop-page .check-item strong{font-size:14px}.vop-page .check-item .item-description{font-size:13px}.vop-page .site-footer .footer-actions .text-button{font-size:11px}.vop-page #voice-vop-button{width:auto;height:auto;padding:8px}.vop-page #voice-vop-button span{display:inline}.metric-switch button,.tab-switch button{font-size:13px!important;padding:9px!important}.viewport-workspace .question-card h1{font-size:22px}}
+@media print{.app-nav,.recommendations-dialog,.visit-subnav,.visit-tools{display:none!important}.main-shell{margin-left:0!important}}
+@media(max-width:600px){.clinician-app .patient-heading h1{font-size:20px!important}.clinician-app .identity-line .patient-avatar{display:none}.clinician-app .patient-heading .row{flex-wrap:nowrap;width:100%}.clinician-app .patient-heading .row .button{padding:8px 11px}.clinician-app .patient-heading .row .voice-trigger{padding:8px 10px;font-size:13px}.clinician-app .sync-line #sync-status:not(.sync-error){display:none}.topbar .mobile-brand span{max-width:calc(100vw - 225px)}.clinician-app .topbar .mobile-brand span{max-width:155px}}
+@media(max-width:600px){.app-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}.app-nav a{padding:11px 3px;min-width:0;font-size:12px}.page-heading{flex-direction:column;gap:10px}.page-heading>.row{width:100%;justify-content:space-between}.page-heading .voice-trigger{min-height:36px;padding:8px 11px}.viewport-workspace .footer-note span{font-size:11px}.task-meta,.task-alt{font-size:13px}.topbar .mobile-brand span{max-width:160px}.detail-tabs a,.viewport-workspace .detail-tabs a{padding:9px 6px;font-size:13px}.detail-tabs .icon{display:none}}

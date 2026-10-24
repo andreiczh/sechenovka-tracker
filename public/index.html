@@ -12,13 +12,14 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/mark.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <link rel="preload" href="/fonts/golos-text-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
   <script defer src="/vendor/qrcode.js"></script>
   <script type="module" src="/app.js"></script>
   <link rel="stylesheet" href="/shared/viewport.css">
   <link rel="stylesheet" href="/shared/support.css">
   <link rel="stylesheet" href="/shared/voice.css">
+  <link rel="stylesheet" href="/shared/interface.css">
+  <link rel="stylesheet" href="/shared/voice-layout.css">
 </head>
 <body class="vop-page">
   <a class="skip-link" href="#main">К содержанию</a>
@@ -32,7 +33,7 @@
       <a href="#patient" data-nav="patient">Передать пациенту <span aria-hidden="true">↗</span></a>
     </nav>
     <button id="voice-vop-button" class="voice-trigger" type="button" aria-label="Записать беседу"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg><span>Записать беседу</span></button>
-    <span class="prototype-label"><span aria-hidden="true"></span>Прототип</span>
+    <button id="recommendations-vop" class="voice-trigger" type="button">Рекомендации</button><span class="prototype-label"><span aria-hidden="true"></span>Прототип</span>
   </header>
 
   <main id="main" class="wrap" tabindex="-1">
@@ -68,7 +69,7 @@
           <button id="screening-button" type="button" class="button button-primary" disabled>Нужен тест <span aria-hidden="true">→</span></button>
           <p id="button-hint" class="button-hint">Кнопка активируется при 6 отметках.</p>
           <button id="manual-screening-button" class="manual-button" type="button">Перейти по решению врача</button>
-          <button id="conversation-button" class="manual-button" type="button">Помочь с беседой →</button><div class="demo-rule"><span class="rule-label">О пороге</span><p>6 из 10 — условие этого прототипа. Это не диагностический порог и не вероятность расстройства.</p></div>
+          <button id="conversation-button" class="manual-button" type="button">Рекомендации к беседе →</button><div class="demo-rule"><span class="rule-label">О пороге</span><p>6 из 10 — условие этого прототипа. Это не диагностический порог и не вероятность расстройства.</p></div>
         </aside>
           <section id="safety-section" class="safety-section" aria-labelledby="safety-title">
             <div class="safety-heading"><span class="attention-mark" aria-hidden="true">!</span><div><h2 id="safety-title">Безопасность · проверить отдельно</h2><p>При любом количестве отметок.</p></div></div>
@@ -107,7 +108,7 @@
     </section>
   </main>
 
-  <footer class="site-footer wrap"><div><span>Трекер Сеченовка</span><p>Памятка для взрослых 18+. Клиническое решение принимает врач.</p></div><div class="footer-actions"><button id="guide-button" class="text-button" type="button">Порядок действий</button><a class="text-button" href="/psychiatrist/">Кабинет психиатра ↗</a><button id="sources-button" class="text-button" type="button">Источники и ограничения <span aria-hidden="true">↗</span></button><button id="install-button" class="text-button" type="button">На главный экран <span aria-hidden="true">↗</span></button></div><p class="storage-note">Отметки не сохраняются и никуда не отправляются.</p></footer>
+  <footer class="site-footer wrap"><div><span>Трекер Сеченовка</span><p>Памятка для взрослых 18+. Клиническое решение принимает врач.</p></div><div class="footer-actions"><button id="voice-vop-history" class="text-button" type="button">Мои беседы</button><button id="guide-button" class="text-button" type="button">Порядок действий</button><a class="text-button" href="/psychiatrist/">Кабинет психиатра ↗</a><button id="sources-button" class="text-button" type="button">Источники и ограничения <span aria-hidden="true">↗</span></button><button id="install-button" class="text-button" type="button">На главный экран <span aria-hidden="true">↗</span></button></div><p class="storage-note">Отметки не сохраняются и никуда не отправляются.</p></footer>
 
   <dialog id="bot-help-dialog" class="info-dialog" aria-labelledby="bot-help-title"><div class="dialog-header"><h2 id="bot-help-title">Как работает дневник</h2><button class="dialog-close" type="button" data-close="bot-help-dialog" aria-label="Закрыть инструкцию по дневнику">×</button></div><p>В боте нажмите «Старт». Можно отвечать кнопками в переписке или открыть дневник через меню бота.</p><p>Для передачи результатов в учебный кабинет пациент отдельно даёт согласие: /doctor → /share в боте или «К приёму» в Mini App.</p><p>Для демонстрации используйте вымышленные сведения. Записи не являются каналом экстренной помощи, врач не наблюдает за ними постоянно. Прохождение добровольное.</p><a class="button button-primary" href="/patient/">Открыть Mini App</a></dialog>
   <dialog id="observation-dialog" class="info-dialog" aria-labelledby="observation-title"><div class="dialog-header"><h2 id="observation-title">Наблюдение</h2><button class="dialog-close" type="button" data-close="observation-dialog" aria-label="Закрыть описание">×</button></div><p id="observation-description"></p><p>Уточните длительность и изменение относительно обычного состояния пациента.</p></dialog>

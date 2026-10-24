@@ -1,3 +1,4 @@
+import { openRecommendations, closeRecommendations, recommendationsOpen } from '/shared/recommendations.js';
 import { openVoice, voiceButton, voiceNotesSection, enhanceVoiceFields } from '/shared/voice-ui.js';
 import { voiceText } from '/shared/voice-model.js';
 import { startViewport, revealViewportElement } from '/shared/viewport.js';
@@ -11,7 +12,7 @@ prepareTelegram();
 const app = document.getElementById('app');
 const modal = document.getElementById('modal');
 let state, busy = false, toastTimer, reminderCount = 1, chartMode = 'feelings';
-let patientAiBusy = false, patientAiError = '';
+let patientAiBusy = false, patientAiError = '', lastMainView = 'today';
 const supportFormDrafts = new Map();
 function captureSupportForm(event) {
   const form = event.target.closest('#health-context-form, #treatment-checkin-form');
@@ -20,7 +21,7 @@ function captureSupportForm(event) {
   draft[form.id === 'health-context-form' ? 'health' : 'treatment'] = { ...Object.fromEntries(new FormData(form)), ...(form.id === 'treatment-checkin-form' ? { _date: form.dataset.date } : {}) };
   supportFormDrafts.set(state.episodeId, draft);
 }
-const navigation = [['today', 'Сегодня'], ['results', 'Результаты'], ['diary', 'Дневник'], ['dynamics', 'Динамика'], ['support', 'Разбор'], ['visit', 'К приёму']];
+const navigation = [['today', 'Сегодня'], ['results', 'Результаты'], ['diary', 'Дневник'], ['dynamics', 'Динамика'], ['visit', 'К приёму']];
 const route = () => location.hash.includes('tgWebAppData=') ? telegramInitialView : location.hash.slice(1) || telegramInitialView;
 const botUrl = () => state?.telegram?.available ? `https://t.me/${state.telegram.username}` : '/bot/';
 const actionButton = (label, action, secondary = false) => `<button class="button${secondary ? ' secondary' : ''}" data-action="${action}">${label}</button>`;
@@ -45,15 +46,22 @@ function setBusy(value) {
 function render() {
   if (!state) return;
   const current = route();
+  if(!current.startsWith('support'))lastMainView=current;
   const nav = navigation.map(([key, label]) => `<a href="#${key}"${(key === 'support' ? current.startsWith('support') : current === key) ? ' aria-current="page"' : ''}>${icon(key === 'support' ? 'help' : key)}<span>${label}</span></a>`).join('');
   const views = { support: () => renderPatientSupport(state, patientAiBusy, patientAiError, supportFormDrafts.get(state.episodeId)), 'support-data': () => renderPatientSupport(state, patientAiBusy, patientAiError, supportFormDrafts.get(state.episodeId), 'data'), 'support-context': () => renderPatientSupport(state, patientAiBusy, patientAiError, supportFormDrafts.get(state.episodeId), 'context'), 'support-treatment': () => renderPatientSupport(state, patientAiBusy, patientAiError, supportFormDrafts.get(state.episodeId), 'treatment'), voice: () => state.joined ? heading('Заметки своими словами', 'Скажите или напишите то, что важно обсудить с врачом.') + voiceNotesSection(state.voiceNotes || []) : home(), today: home, results, diary, dynamics, visit, settings, flow, 'saved-assessment': () => receipt('assessment'), 'saved-diary': () => receipt('diary') };
-  const content = (views[current] || home)();
-  app.innerHTML = `<div class="shell"><aside class="sidebar"><a class="brand" href="#today"><img src="/icons/mark.svg" alt=""><span>Трекер Сеченовка<small>Дневник самочувствия</small></span></a><nav class="nav" aria-label="Разделы приложения">${nav}</nav><div class="sidebar-bottom"><a href="#settings" class="settings-link">${icon('bell')}Напоминания</a><a href="${h(botUrl())}" class="settings-link">${icon('bot')}Диалог бота</a><div class="demo-profile"><span class="avatar">ТС</span><div><strong>${state.telegram?.authenticated ? 'Профиль Telegram' : 'Тестовый профиль'}</strong><small>Демонстрация</small></div></div></div></aside>
-    <div class="main-shell"><header class="topbar"><a class="mobile-brand brand" href="#today"><img src="/icons/mark.svg" alt=""><span>Трекер Сеченовка</span></a><span class="topbar-left">Небольшие записи. Понятная картина.</span><div class="topbar-right"><time datetime="${state.today}">${h(dateLabel(state.today))}</time><button class="demo-badge" data-action="demo" aria-label="Настройки демонстрации">Тестовые данные</button><a class="mobile-settings" href="#settings" aria-label="Напоминания и настройки">${icon('settings')}</a></div></header>
-    <main id="main" class="main">${content}<footer class="footer-note"><span>Демонстрация для взрослых 18+. Используйте вымышленные данные.<br>Записи не просматриваются врачом в реальном времени.</span><button data-action="sources">Об анкетах и данных</button></footer></main></div><nav class="mobile-nav" aria-label="Разделы приложения">${nav}</nav></div>`;
+  const content = (views[current.startsWith('support') ? lastMainView : current] || home)();
+  app.innerHTML = `<div class="shell"><div class="main-shell"><header class="topbar"><a class="mobile-brand brand" href="#today"><img src="/icons/mark.svg" alt=""><span>Трекер Сеченовка</span></a><div class="topbar-right"><time datetime="${state.today}">${h(dateLabel(state.today))}</time>${state.joined?'<button class="button secondary" data-action="open-recommendations">Рекомендации</button>':''}<button class="demo-badge" data-action="demo" aria-label="Настройки демонстрации">Тестовые данные</button><a class="mobile-settings" href="#settings" aria-label="Напоминания и настройки">${icon('settings')}</a></div></header><nav class="app-nav" aria-label="Разделы приложения">${nav}</nav>
+    <main id="main" class="main">${content}<footer class="footer-note"><span>Учебный профиль 18+ · вымышленные данные.<br>Врач не читает записи в реальном времени.</span><button data-action="sources">Об анкетах и данных</button></footer></main></div></div>`;
   enhanceVoiceFields(app, extra => openPatientVoice(extra));
+  if(current.startsWith('support'))showPatientRecommendations();
   if (busy) disablePendingButtons();
 }
+function showPatientRecommendations() {
+  const section=({'support-data':'data','support-context':'context','support-treatment':'treatment'})[route()]||'main';
+  const panel=openRecommendations({key:'patient',title:'Рекомендации и вопросы врачу',description:'Понятный разбор сохранённых ответов. Лечение определяет врач.',content:renderPatientSupport(state,patientAiBusy,patientAiError,supportFormDrafts.get(state.episodeId),section),closed:()=>{if(route().startsWith('support'))location.hash=lastMainView;}});
+  enhanceVoiceFields(panel,extra=>openPatientVoice(extra));
+}
+
 function home() {
   if (!state.joined) return heading('Понять, как вы себя чувствуете', 'Начните с короткого знакомства с приложением.') + `<div class="card welcome"><img class="welcome-cover" src="/assets/welcome.png" alt="Человек делает записи в блокноте при дневном свете"><div class="welcome-top"><div><h2>Расскажите о самочувствии</h2><p>Ответы помогут описать, что беспокоит сейчас, а короткие записи — вспомнить изменения на приёме.</p></div><img src="/icons/mark.svg" alt=""></div><div class="welcome-steps"><div><b>01</b><h3>Исходные анкеты</h3><p>PHQ-9 и GAD-7 за последние две недели. Обычно около 5–10 минут.</p></div><div><b>02</b><h3>Пара минут в день</h3><p>Настроение, тревога, сон и обычные дела. С напоминанием в удобное время.</p></div><div><b>03</b><h3>Картина к приёму</h3><p>Результаты и записи в одной сводке. Её можно показать врачу.</p></div></div>${note('Это тестовая версия. Ответы хранятся на сервере демонстрации. Она не устанавливает диагноз, не назначает лечение и не отправляет сообщения врачу. Вводите только придуманные сведения.')}<label class="check-row"><input id="adult-confirm" type="checkbox"><span>Мне 18 лет или больше. Я понимаю, что это демонстрация на вымышленных данных.</span></label><div class="row">${actionButton('Начать скрининг ' + icon('arrow'), 'join')}<button class="text-link" data-action="seed-confirm">Посмотреть пример с историей →</button></div></div>`;
   const done = ['done', 'handoff', 'review'].includes(state.task.kind), flow = state.flow;
@@ -232,6 +240,7 @@ document.addEventListener('click', async event => {
   if (telegramLink && globalThis.Telegram?.WebApp?.openTelegramLink && state.telegram?.authenticated) { event.preventDefault(); globalThis.Telegram.WebApp.openTelegramLink(telegramLink.href); return; }
   const button = event.target.closest('[data-action]'); if (!button) return;
   const name = button.dataset.action;
+  if (name === 'open-recommendations') { location.hash='support'; return; }
   if (name === 'close-modal') { modal.close(); return; }
   if (name === 'demo') return demoDialog();
   if (name === 'sources') return sourcesDialog();
@@ -246,7 +255,7 @@ document.addEventListener('click', async event => {
   if (name === 'patient-ai-generate') {
     if (patientAiBusy || !document.querySelector('#patient-ai-consent')?.checked) return showToast('Подтвердите обработку только вымышленных данных', true);
     modal.close(); patientAiBusy = true; patientAiError = '';
-    const updateCard = () => { const el = document.querySelector('#patient-ai-card'); if (el) el.outerHTML = renderPatientAi(state, patientAiBusy, patientAiError); };
+    const updateCard = () => { if(recommendationsOpen('patient'))showPatientRecommendations(); };
     updateCard();
     try { await generatePatientSupport(state); const next = await getState(); if (next.revision >= state.revision) state = next; showToast('Короткий разбор сохранён. Он доступен и в боте: /insights.'); }
     catch (error) { patientAiError = error.message; showToast(error.message, true); }
@@ -299,7 +308,7 @@ document.addEventListener('submit', async event => {
   if (event.target.id === 'reminders-form') await act({ type: 'reminders', settings: { enabled: data.get('enabled') === 'on', times: Array.from({ length: Number(data.get('count')) }, (_, i) => data.get(`time-${i}`)), timeZone: data.get('timeZone') } }, { message: 'Расписание сохранено' });
   if (event.target.id === 'appointment-form') await act({ type: 'appointment', date: String(data.get('date')), time: String(data.get('time')), question: String(data.get('question')) }, { message: state.connection?.enabled ? 'Заметка сохранена и доступна в учебном кабинете' : 'Заметка сохранена в вашем профиле' });
 });
-window.addEventListener('hashchange', () => { render(); window.scrollTo({ top: 0, behavior: 'instant' }); document.querySelector('main h1')?.focus({ preventScroll: true }); refreshState(); });
+window.addEventListener('hashchange', () => { if(!route().startsWith('support'))closeRecommendations();render(); window.scrollTo({ top: 0, behavior: 'instant' }); document.querySelector('main h1')?.focus({ preventScroll: true }); refreshState(); });
 window.addEventListener('online', () => showToast('Соединение восстановлено. Повторите незавершённое действие.'));
 window.addEventListener('offline', () => showToast('Нет связи с сервером. Новые ответы не сохраняются.', true));
 try { state = await getState(); render(); } catch { app.innerHTML = '<main class="loading"><h1>Сервер временно недоступен</h1><p>Проверьте соединение и обновите страницу. Новые ответы пока не сохраняются.</p></main>'; }
@@ -337,3 +346,6 @@ document.addEventListener('click', event => {
   const note = event.target.closest('[data-voice-note]'); if (note) void openPatientVoice({ existing: (state.voiceNotes || []).find(n => n.id === note.dataset.voiceNote) });
   if (event.target.closest('[data-voice-library]')) void openPatientVoice({ library: true });
 });
+
+// Open the received-note tool directly from the bot; recording still requires a user click.
+if(state?.joined && route()==='voice')void openPatientVoice();

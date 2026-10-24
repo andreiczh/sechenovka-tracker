@@ -13,7 +13,7 @@ import { createClinicianWorkspace, clinicianList, clinicianListItem, clinicianPa
 import { connectedCase, isSharedPatient, clinicWorkspaceId, emptyClinicWorkspace } from './lib/care-link.mjs';
 import { createClinicianAuth } from './lib/clinician-auth.mjs';
 import { aiView, createAiSummaryService } from './lib/ai-summary.mjs';
-import { buildPatientSupport, selectedSupportStep, supportText } from './lib/insights.mjs';
+import { buildPatientSupport, selectedSupportStep, supportWindowText } from './lib/insights.mjs';
 import { createPatientAiService, patientAiView, patientAiWorkspaceId, supportFingerprint } from './lib/patient-ai.mjs';
 import { saveTherapyContext } from './lib/therapy-support.mjs';
 import { createTelegram } from './lib/telegram.mjs';
@@ -278,7 +278,7 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
             else if (action.type === 'seed') state = { ...createHistory(wallClock()), careConnection: state.careConnection || null };
             else if (action.type === 'bot' && typeof action.text === 'string' && ['/insights', '/ai', '/aiconsent'].includes(action.text.trim())) {
               const current = await view(state, id, transaction), at = demoNow(state, wallClock());
-              const text = action.text.trim() === '/insights' ? supportText(current.support, !current.aiSupport.stale ? current.aiSupport.draft : null) : 'В браузерном симуляторе откройте «Мой разбор» в Mini App: там можно подтвердить обработку вымышленных данных и подготовить короткий ИИ-разбор. Здесь /insights покажет тот же сохранённый результат. В настоящем Telegram доступны /ai и /aiconsent.';
+              const text = action.text.trim() === '/insights' ? supportWindowText(current.support) : 'В браузерном симуляторе откройте «Мой разбор» в Mini App: там можно подтвердить обработку вымышленных данных и подготовить короткий ИИ-разбор. Здесь /insights покажет тот же сохранённый результат. В настоящем Telegram доступны /ai и /aiconsent.';
               state.messages.push({ id: randomUUID(), role: 'user', text: action.text.trim(), at }, { id: randomUUID(), role: 'bot', text, at }); state.messages = state.messages.slice(-320); state.revision++;
             }
             else state = applyAction(structuredClone(state), action, wallClock());
