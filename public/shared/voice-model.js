@@ -30,10 +30,11 @@ export function voiceGroups(segments) {
   return Object.entries(VOICE_TOPICS).map(([id, title]) => ({ id, title, segments: segments.filter(s => s.topics.includes(id)) })).filter(g => g.segments.length);
 }
 export function voiceSummary(segments, limit = 6) {
-  const selected = [], seen = new Set();
-  const add = row => { if(row && !seen.has(row.id) && selected.length < limit){seen.add(row.id);selected.push(row);} };
-  for(const topic of ['complaints','course','sleep','function','medicines','safety','history','goal']) add(segments.find(s=>s.role==='patient' && s.topics?.includes(topic)));
-  add(segments.find(s=>s.role==='doctor' && s.topics?.includes('plan')));
+  const selected = [], seen = new Set(), texts = new Set();
+  const add = (row,budget=limit) => { const key=row && row.role+':'+row.text.trim().toLocaleLowerCase('ru').replace(/\s+/g,' '); if(row && !seen.has(row.id) && !texts.has(key) && selected.length < budget){seen.add(row.id);texts.add(key);selected.push(row);} };
+  const plan = segments.find(s=>s.role==='doctor' && s.topics?.includes('plan'));
+  for(const topic of ['complaints','course','sleep','function','medicines','safety','history','goal']) add(segments.find(s=>s.role==='patient' && s.topics?.includes(topic)),plan?Math.max(0,limit-1):limit);
+  add(plan);
   for(const role of ['patient','unknown','doctor']) for(const row of segments.filter(s=>s.role===role)) add(row);
   return { segments:selected, omitted:Math.max(0,segments.length-selected.length) };
 }

@@ -1,4 +1,4 @@
-const CACHE = 'sechenovka-vop-v7';
+const CACHE = 'sechenovka-vop-v8';
 const PREFIX = 'sechenovka-vop-';
 const FILES = ['/shared/voice-ui.js', '/shared/voice-model.js', '/shared/voice-capture.js', '/shared/voice-worker.js', '/shared/voice-audio-worklet.js', '/shared/voice.css', '/', '/index.html', '/shared/viewport.js', '/shared/vop-support.js', '/shared/support-ui.js', '/shared/evidence.js', '/shared/client.js', '/shared/telegram.js', '/shared/support.css', '/shared/viewport.css', '/styles.css', '/app.js', '/config.js', '/clinical-data.js', '/vendor/qrcode.js', '/manifest.webmanifest', '/fonts/golos-text-cyrillic.woff2', '/fonts/golos-text-latin.woff2', '/icons/mark.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png'];
 

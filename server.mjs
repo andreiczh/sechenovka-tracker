@@ -97,11 +97,12 @@ export function createAppServer({ config = readConfig(), storePath = config.stor
       catch { fail(400, 'Некорректный адрес'); return; }
 
       if (pathname.startsWith('/voice-assets/')) {
-        if (req.method !== 'GET') { fail(405, 'Метод не поддерживается'); return; }
+        if (req.method !== 'GET' && req.method !== 'HEAD') { fail(405, 'Метод не поддерживается', { Allow:'GET, HEAD' }); return; }
         const asset = await voiceAssets(pathname.slice('/voice-assets/'.length));
         if (!asset) { fail(404, 'Файл речевого модуля не найден'); return; }
         const type = pathname.endsWith('.wasm') ? 'application/wasm' : /\.m?js$/.test(pathname) ? 'text/javascript; charset=utf-8' : pathname.endsWith('.json') ? 'application/json' : 'application/octet-stream';
         res.writeHead(200, { ...headers, 'Content-Type': type, 'Content-Length': asset.size, 'Cache-Control': 'public, max-age=86400', ETag: '"' + asset.sha + '"' });
+        if(req.method==='HEAD'){res.end();return;}
         const stream = createReadStream(asset.file); stream.on('error', () => res.destroy()); stream.pipe(res); return;
       }
 

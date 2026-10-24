@@ -16,7 +16,7 @@ import { createTelegram } from '../lib/telegram.mjs';
 import { telegramSessionId } from '../lib/telegram-auth.mjs';
 import { emptyTherapyContext, saveTherapyContext, THERAPY_FIELDS } from '../lib/therapy-support.mjs';
 import { voiceSummary } from '../public/shared/voice-model.js';
-import { startVoiceCapture } from '../public/shared/voice-capture.js';
+import { startVoiceCapture, prepareVoiceAudio } from '../public/shared/voice-capture.js';
 const NOW = Date.parse('2026-10-24T08:00:00Z');
 const rows = [{ id: 's0', start: 0, end: 3, text: 'Что стало труднее делать?', role: 'doctor' }, { id: 's1', start: 3, end: 9, text: 'Мне трудно заснуть. Дозу я не менял.', role: 'patient' }];
 const config = readConfig({ OPENROUTER_API_KEY: 'synthetic_key_not_real_123456', AI_PROVIDER: 'openrouter' });
@@ -139,7 +139,7 @@ test('audio processor enforces sample limit independently of browser timers and 
     await import('../public/shared/voice-audio-worklet.js');const processor=new Processor({processorOptions:{maximumSeconds:2}}),frame=new Float32Array(128).fill(0.4);
     for(let i=0;i<100;i++)processor.process([[frame]]);const count=processor.total;processor.port.onmessage({data:'pause'});for(let i=0;i<100;i++)processor.process([[frame]]);assert.equal(processor.total,count);
     processor.port.onmessage({data:'resume'});for(let i=0;i<2000;i++)processor.process([[frame]]);
-    assert.equal(processor.total,32000);assert.equal(events.filter(e=>e.type==='limit').length,1);assert.equal(events.filter(e=>e.audio).reduce((sum,e)=>sum+e.audio.length,0),32000);
+    assert.equal(processor.total,32000);assert.equal(events.filter(e=>e.type==='limit').length,1);assert.ok(events.filter(e=>e.type==='level').length>=3);assert.ok(events.filter(e=>e.type==='level').every(e=>Math.abs(e.value-0.4)<0.001));assert.equal(events.filter(e=>e.audio).reduce((sum,e)=>sum+e.audio.length,0),32000);
     processor.port.onmessage({data:'resume'});processor.process([[frame]]);assert.equal(processor.total,32000);
   }finally{globalThis.AudioWorkletProcessor=oldBase;globalThis.registerProcessor=oldRegister;globalThis.sampleRate=oldRate;}
 });
@@ -159,10 +159,10 @@ test('microphone timeout releases the audio context and stops any stream granted
   const keys=['navigator','window','AudioContext'],descriptors=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let resolveMedia,stopped=0,closed=0,resumedBeforeMedia=false;
   try{
     const media=new Promise(resolve=>{resolveMedia=resolve});
-    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:()=>{assert.equal(resumedBeforeMedia,true);return media}}}});
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:constraints=>{assert.equal(resumedBeforeMedia,true);assert.deepEqual(constraints.audio.deviceId,{exact:'synthetic-microphone'});return media}}}});
     Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
     Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='suspended';resume(){resumedBeforeMedia=true;return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
-    await assert.rejects(startVoiceCapture({onChunk:()=>{},onState:()=>{},setupTimeoutMs:10}),/не завершил запрос микрофона/);assert.equal(closed,1);
+    await assert.rejects(startVoiceCapture({onChunk:()=>{},onState:()=>{},deviceId:'synthetic-microphone',setupTimeoutMs:10}),/не завершил запрос микрофона/);assert.equal(closed,1);
     resolveMedia({getTracks:()=>[{stop:()=>{stopped++}}]});await new Promise(resolve=>setImmediate(resolve));assert.equal(stopped,1);
   }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
 });
@@ -180,5 +180,9 @@ test('cancellation during worklet loading releases the microphone without starti
 
 test('voice summary keeps complete source quotes, attribution and an explicit count of omitted fragments',()=>{
  const segments=[{id:'s0',role:'doctor',text:'Вы начали принимать препарат?',topics:['medicines']},{id:'s1',role:'patient',text:'Я НЕ принимаю лекарства.',topics:['medicines','history']},{id:'s2',role:'patient',text:'Не сплю вторую неделю.',topics:['sleep','complaints']},{id:'s3',role:'doctor',text:'Давайте обсудим следующий контакт.',topics:['plan']},{id:'s4',role:'unknown',text:'Неясно, кто это сказал.',topics:['other']}];
- const summary=voiceSummary(segments,3);assert.deepEqual(summary.segments.map(s=>s.id),['s2','s1','s3']);assert.equal(summary.omitted,2);assert.equal(summary.segments[1].text,'Я НЕ принимаю лекарства.');assert.equal(summary.segments[2].role,'doctor');assert.deepEqual(voiceSummary([]),{segments:[],omitted:0});
+ const summary=voiceSummary(segments,3);assert.deepEqual(summary.segments.map(s=>s.id),['s2','s1','s3']);assert.equal(summary.omitted,2);assert.equal(summary.segments[1].text,'Я НЕ принимаю лекарства.');assert.equal(summary.segments[2].role,'doctor');assert.deepEqual(voiceSummary([]),{segments:[],omitted:0});assert.equal(voiceSummary([segments[1],{...segments[1],id:'s5'}]).segments.length,1);
+});
+
+test('quiet audio above the noise gate reaches recognition without changing the original recording or clipping',()=>{
+ const quiet=Float32Array.from({length:16000},(_,i)=>0.001*Math.sin(i/10)),before=quiet.slice(),prepared=prepareVoiceAudio(quiet);assert.ok(prepared);assert.deepEqual(quiet,before);assert.ok(Math.max(...prepared)>0.01);assert.ok(Math.max(...prepared)<=0.95);assert.equal(prepareVoiceAudio(new Float32Array(16000)),null);assert.equal(prepareVoiceAudio(new Float32Array()),null);const loud=new Float32Array([0.9,-0.9]);assert.equal(prepareVoiceAudio(loud),loud);
 });

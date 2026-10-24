@@ -3,3 +3,5 @@
 .voice-dialog [hidden]{display:none!important}
 
 @media(max-width:600px){#voice-vop-button span,.patient-heading .voice-trigger span{display:none}#voice-vop-button,.patient-heading .voice-trigger{width:34px;height:34px;padding:7px;flex-shrink:0}}
+
+.voice-title-field select{min-width:0;flex:1;max-width:100%;border:1px solid #d4ded6;border-radius:6px;padding:7px;font:inherit;background:white;color:#31523f}#voice-level{width:120px;height:14px;margin-left:10px;accent-color:#466d56}
