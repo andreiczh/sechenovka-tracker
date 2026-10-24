@@ -36,6 +36,7 @@ input,textarea,select{font-size:15px}
 .viewport-workspace .footer-note span{font-size:12px;line-height:1.4}
 .task-meta,.task-alt{font-size:13px}
 .viewport-controls{height:40px;font-size:13px;gap:10px}
+.viewport-controls:has(.viewport-next:disabled):has(.viewport-prev:disabled){display:none}
 .viewport-controls select{font-size:13px;min-height:34px;height:34px}
 .viewport-controls button{width:36px;height:34px;min-height:34px;font-size:18px}
 .viewport-content{gap:16px;align-items:start}
