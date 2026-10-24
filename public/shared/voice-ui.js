@@ -1,3 +1,4 @@
+import { voiceTimeline } from '/shared/voice-flow.js';
 import { voiceViews } from '/shared/voice-view.js';
 import { telegramHeaders } from '/shared/telegram.js';
 import { requestJSON, escapeHtml as h } from '/shared/client.js';
@@ -9,7 +10,7 @@ const voiceWhen = note => new Intl.DateTimeFormat('ru', { day: 'numeric', month:
 const mic = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8"/></svg>';
 export const voiceButton = (label = 'Заметка голосом', attributes = '') => `<button type="button" class="voice-trigger" data-voice-start aria-label="${h(label)}" title="${h(label)}" ${attributes}>${mic}<span>${h(label)}</span></button>`;
 export function voiceNotesSection(notes = [], doctor = false) {
-  const visible = notes.filter(n => !n.archivedAt).slice(-3).reverse();
+  const visible = voiceTimeline(notes.filter(n => !n.archivedAt)).slice(0,3);
   return `<section class="card voice-notes-card"><div class="card-header card-head"><h2>${doctor ? 'Записи бесед и заметки пациента' : 'Заметки своими словами'}</h2>${doctor ? '<button class="text-link" data-voice-library>Все записи и архив →</button>' : voiceButton('Новая заметка')}</div><p class="small muted">${doctor ? 'Проверенные расшифровки и темы. Запись врача остаётся в кабинете; план публикуется отдельно.' : 'Можно сказать голосом, загрузить аудио или написать. Заметка не заменяет дневник и ответы PHQ-9/GAD-7.'}</p><div class="voice-note-list ${doctor ? 'clinic-note-list' : ''}">${visible.map(n => `<button class="voice-note-link" data-voice-note="${h(n.id)}"><strong>${h(n.title)}</strong><span>${h(voiceWhen(n))} · ${n.scope === 'patient' ? 'со слов пациента' : 'запись врача'}${n.incomplete?' · частичная расшифровка':''}${n.ai?.complete===false?' · неполная структура':''} · ${n.segments.length} фрагм.</span></button>`).join('') || '<p class="small muted">Сохранённых заметок пока нет.</p>'}</div>${doctor ? '' : '<button class="text-link" data-voice-library>Все записи и архив →</button>'}</section>`;
 }
 function download(text, name, type = 'text/plain;charset=utf-8') { const url = URL.createObjectURL(new Blob([text], { type })); const a = document.createElement('a'); a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
@@ -49,7 +50,7 @@ export async function openVoice(options) {
   const ui = voiceViews(v, { isDoctor, perPage, microphonePicker, mic, voiceWhen });
   function render() {
     if(v.cancelled)return;
-    dialog.innerHTML=ui.header()+`<div class="voice-body">${v.stage==='capture'?ui.captureBody():v.stage==='recording'?ui.recordingBody():v.stage==='saved'?ui.savedBody():v.stage==='library'?`${ui.destinationCard()}<h3>Сохранённые записи</h3>${[...v.context.notes,...(v.context.sharedNotes||[])].slice().reverse().map(n=>`<button class="voice-note-link" data-v-record="${n.id}"><strong>${h(n.title)}</strong><span>${h(voiceWhen(n))} · ${n.scope==='patient'?'заметка пациента':'беседа врача'} · ${n.archivedAt?'в архиве':'сохранено'}</span></button>`).join('')||'<p>Пока нет записей. Создайте первую — она появится здесь.</p>'}<button data-v="new" class="voice-primary">Новая запись</button>`:ui.reviewBody()}</div>`+ui.footer();
+    dialog.innerHTML=ui.header()+`<div class="voice-body">${v.stage==='capture'?ui.captureBody():v.stage==='recording'?ui.recordingBody():v.stage==='saved'?ui.savedBody():v.stage==='library'?`${ui.destinationCard()}<h3>Сохранённые записи</h3>${voiceTimeline([...v.context.notes,...(v.context.sharedNotes||[])]).map(n=>`<button class="voice-note-link" data-v-record="${n.id}"><strong>${h(n.title)}</strong><span>${h(voiceWhen(n))} · ${n.scope==='patient'?'заметка пациента':'беседа врача'} · ${n.archivedAt?'в архиве':'сохранено'}</span></button>`).join('')||'<p>Пока нет записей. Создайте первую — она появится здесь.</p>'}<button data-v="new" class="voice-primary">Новая запись</button>`:ui.reviewBody()}</div>`+ui.footer();
     if(v.working)for(const b of dialog.querySelectorAll('button:not([data-v="minimize"])'))b.disabled=true;
     if(analysisDialog.open)analysisDialog.innerHTML=ui.analysisBody();
     if(v.focusRow&&dialog.open){dialog.querySelector('[data-v-text="'+v.focusRow+'"]')?.focus({preventScroll:true});v.focusRow=null;}
@@ -124,7 +125,7 @@ export async function openVoice(options) {
       if(command==='save'){
         if(v.pending)throw new Error('Дождитесь распознавания всех фрагментов или остановите его, затем проверьте текст.');
         if(options.isCurrent&&!options.isCurrent())throw new Error('Сейчас открыта другая карточка или эпизод. Вернитесь к профилю, указанному в заголовке записи.');
-        checkConsent();if(!v.reviewed)throw new Error('Сначала подтвердите проверку расшифровки и ролей.');v.working=true;render();
+        checkConsent();if(!v.reviewed)throw new Error('Сначала подтвердите проверку расшифровки и ролей.');v.status='Сохраняем проверенный текст…';v.working=true;render();
         const result=await api({op:'save',segments:v.rows.filter(r=>r.text.trim()),title:v.title,duration:v.duration,engine:v.engine,incomplete:v.errors.length>0,synthetic:true,participantsConsent:v.consent,reviewed:true});
         v.context=result;v.stage='saved';v.existing=result.notes.find(n=>n.id===result.savedId);v.rows=structuredClone(v.existing.segments);v.analysis=null;v.working=false;v.status=options.scope==='vop'?'Беседа и текущие отметки ВОП сохранены. Профиль пациента автоматически не выбран.':isDoctor?'Расшифровка сохранена в кабинете. План пациента не изменён.':'Заметка сохранена. Анкеты и дневник не изменены.';await options.onSaved?.();
       }

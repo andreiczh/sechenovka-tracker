@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { voiceDestination } from '../public/shared/voice-flow.js';
+import { voiceDestination, voiceTimeline } from '../public/shared/voice-flow.js';
 import { voiceViews } from '../public/shared/voice-view.js';
 import { supportWindowText } from '../lib/insights.mjs';
 
@@ -28,4 +28,9 @@ test('chat opens recommendations separately but retains direct safety guidance',
   const urgent=supportWindowText({urgent:true});
   assert.match(urgent,/помощь и оценка безопасности/);assert.match(urgent,/приостановлены/);
   assert.doesNotMatch(urgent,/Откройте окно кнопкой ниже/);
+});
+test('mixed patient and physician notes use one chronological history without mutating source data', () => {
+  const rows=[{id:'doctor',at:'2026-10-24T15:00:00Z'},{id:'patient',at:'2026-10-24T18:00:00Z'},{id:'old',at:'2026-10-23T12:00:00Z'}];
+  assert.deepEqual(voiceTimeline(rows).map(n=>n.id),['patient','doctor','old']);
+  assert.deepEqual(rows.map(n=>n.id),['doctor','patient','old']);
 });
