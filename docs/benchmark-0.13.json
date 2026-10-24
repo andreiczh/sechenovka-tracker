@@ -1,0 +1,311 @@
+{
+  "version": "0.13.0",
+  "origin": "https://sechenovka-tracker.onrender.com",
+  "preparedAt": "2026-10-24T20:44:18.635Z",
+  "summary": {
+    "ok": true,
+    "ms": 2377.537042,
+    "cached": false,
+    "model": "dots-studio/dots-3-note-preview:free",
+    "highlights": 8,
+    "questions": 5,
+    "cost": 0,
+    "at": "2026-10-24T20:45:15.988Z",
+    "cacheSamplesMs": [
+      313.97470799999974,
+      218.27762499999972,
+      224.01508300000023
+    ]
+  },
+  "alert": {
+    "triggerAt": 1792874788421,
+    "storedAt": 1792874788980,
+    "ok": true,
+    "presentedAt": "2026-10-24T20:46:31.333Z",
+    "ms": 2912
+  },
+  "ui": {
+    "samples": [
+      {
+        "section": "Анкеты",
+        "ms": 179
+      },
+      {
+        "section": "Дневник",
+        "ms": 163
+      },
+      {
+        "section": "Динамика",
+        "ms": 134
+      },
+      {
+        "section": "Приём",
+        "ms": 179
+      },
+      {
+        "section": "Обзор",
+        "ms": 171
+      },
+      {
+        "section": "Анкеты",
+        "ms": 153
+      },
+      {
+        "section": "Дневник",
+        "ms": 158
+      },
+      {
+        "section": "Динамика",
+        "ms": 138
+      },
+      {
+        "section": "Приём",
+        "ms": 144
+      },
+      {
+        "section": "Обзор",
+        "ms": 146
+      }
+    ],
+    "n": 10,
+    "medianMs": 155.5,
+    "p95Ms": 179,
+    "minMs": 134,
+    "maxMs": 179,
+    "method": "Real UI click to expected rendered section, warm loaded profile, includes automation overhead"
+  },
+  "layout": {
+    "desktop": [
+      {
+        "size": {
+          "width": 1440,
+          "height": 900
+        },
+        "overview": {
+          "cards": [
+            [
+              400,
+              400
+            ],
+            [
+              400,
+              400
+            ]
+          ],
+          "document": [
+            900,
+            900
+          ],
+          "work": [
+            650,
+            650
+          ]
+        },
+        "dynamics": {
+          "card": [
+            593,
+            593
+          ],
+          "work": [
+            595,
+            595
+          ]
+        }
+      },
+      {
+        "size": {
+          "width": 1280,
+          "height": 620
+        },
+        "overview": {
+          "cards": [
+            [
+              229,
+              229
+            ],
+            [
+              229,
+              229
+            ]
+          ],
+          "document": [
+            620,
+            620
+          ],
+          "work": [
+            370,
+            370
+          ]
+        },
+        "dynamics": {
+          "card": [
+            313,
+            313
+          ],
+          "work": [
+            315,
+            315
+          ]
+        }
+      },
+      {
+        "size": {
+          "width": 1920,
+          "height": 1080
+        },
+        "overview": {
+          "cards": [
+            [
+              580,
+              580
+            ],
+            [
+              580,
+              580
+            ]
+          ],
+          "document": [
+            1080,
+            1080
+          ],
+          "work": [
+            830,
+            830
+          ]
+        },
+        "dynamics": {
+          "card": [
+            773,
+            773
+          ],
+          "work": [
+            775,
+            775
+          ]
+        }
+      },
+      {
+        "size": {
+          "width": 1280,
+          "height": 720
+        },
+        "overview": {
+          "cards": [
+            [
+              211,
+              211
+            ],
+            [
+              211,
+              211
+            ]
+          ],
+          "document": [
+            720,
+            720
+          ],
+          "work": [
+            470,
+            470
+          ]
+        },
+        "dynamics": {
+          "card": [
+            413,
+            413
+          ],
+          "work": [
+            415,
+            415
+          ]
+        }
+      }
+    ],
+    "roster": [
+      {
+        "document": [
+          620,
+          620
+        ],
+        "rows": 2,
+        "size": [
+          1280,
+          620
+        ],
+        "work": [
+          451,
+          451
+        ]
+      },
+      {
+        "document": [
+          900,
+          900
+        ],
+        "rows": 5,
+        "size": [
+          1440,
+          900
+        ],
+        "work": [
+          731,
+          731
+        ]
+      },
+      {
+        "document": [
+          720,
+          720
+        ],
+        "rows": 4,
+        "size": [
+          1280,
+          720
+        ],
+        "work": [
+          551,
+          551
+        ]
+      }
+    ],
+    "mobile": {
+      "controls": [
+        "Обзор",
+        "Анкеты",
+        "Дневник",
+        "Динамика",
+        "Приём"
+      ],
+      "document": [
+        390,
+        390
+      ],
+      "main": [
+        390,
+        390
+      ],
+      "viewport": [
+        390,
+        844
+      ]
+    }
+  },
+  "acceptance": {
+    "passed": 15,
+    "total": 15,
+    "definition": "docs/benchmark-0.13.md"
+  },
+  "tests": {
+    "total": 134,
+    "passed": 133,
+    "failed": 0,
+    "skipped": 1
+  },
+  "savings": {
+    "measured": false,
+    "assumedMinutesIncludingPreparation": 3.5,
+    "assumedInAppointmentMinutes": 0.5,
+    "assumedPreparationMinutes": 3,
+    "model": "docs/resource-review-0.12.md"
+  }
+}
