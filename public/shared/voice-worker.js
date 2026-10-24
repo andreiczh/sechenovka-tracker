@@ -1,4 +1,5 @@
 import { pipeline, env } from '/voice-assets/transformers.min.js';
+import { loadVoiceModel } from '/shared/voice-model-loader.js';
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
 env.localModelPath = '/voice-assets/';
@@ -8,7 +9,7 @@ env.backends.onnx.wasm.proxy = false;
 let model;
 self.onmessage = async ({ data }) => {
   try {
-    model ||= pipeline('automatic-speech-recognition', 'whisper-base', { dtype: 'q8', device: 'wasm', local_files_only: true, progress_callback: progress => self.postMessage({ type: 'progress', status: progress.status, file: progress.file, progress: progress.progress }) });
+    model ||= loadVoiceModel(() => pipeline('automatic-speech-recognition', 'whisper-base', { dtype: 'q8', device: 'wasm', local_files_only: true, progress_callback: progress => self.postMessage({ type: 'progress', status: progress.status, file: progress.file, progress: progress.progress }) }), { onRetry: () => self.postMessage({ type:'progress',message:'Соединение прервалось. Повторяем загрузку речевого модуля один раз…' }) });
     const transcribe = await model;
     if (data.type === 'load') { self.postMessage({ type: 'ready' }); return; }
     const result = await transcribe(data.audio, { language: 'russian', task: 'transcribe', return_timestamps: true, chunk_length_s: 25, stride_length_s: 4 });

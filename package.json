@@ -1,6 +1,6 @@
 {
   "name": "sechenovka-tracker",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "private": true,
   "type": "module",
   "description": "Локальный прототип: ВОП, Mini App пациента, кабинет психиатра и симулятор Telegram",

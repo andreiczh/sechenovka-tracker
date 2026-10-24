@@ -6,7 +6,7 @@ export class VoiceRecognizer {
       this.ready = new Promise((resolve, reject) => { this.readyResolve = resolve; this.readyReject = reject; });
       this.worker.onmessage = ({ data }) => {
         if (data.type === 'ready') { this.readyResolve(); this.progress('Речевой модуль готов'); }
-        else if (data.type === 'progress') this.progress(data.file ? `Загрузка модуля: ${String(data.file).split('/').at(-1)}${Number.isFinite(data.progress) ? ' · ' + Math.round(data.progress) + '%' : ''}` : 'Подготовка речевого модуля…');
+        else if (data.type === 'progress') this.progress(data.message || (data.file ? `Загрузка модуля: ${String(data.file).split('/').at(-1)}${Number.isFinite(data.progress) ? ' · ' + Math.round(data.progress) + '%' : ''}` : 'Подготовка речевого модуля…'));
         else if (data.type === 'result') { this.jobs.get(data.id)?.resolve(data.result); this.jobs.delete(data.id); }
         else if (data.type === 'error') { const error = new Error(data.message + (data.diagnostic ? ' Детали сбоя: ' + data.diagnostic : '')); if (data.id) { this.jobs.get(data.id)?.reject(error); this.jobs.delete(data.id); } else { this.readyReject(error); this.worker?.terminate(); this.ready = null; } }
       };

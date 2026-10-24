@@ -186,3 +186,10 @@ test('voice summary keeps complete source quotes, attribution and an explicit co
 test('quiet audio above the noise gate reaches recognition without changing the original recording or clipping',()=>{
  const quiet=Float32Array.from({length:16000},(_,i)=>0.001*Math.sin(i/10)),before=quiet.slice(),prepared=prepareVoiceAudio(quiet);assert.ok(prepared);assert.deepEqual(quiet,before);assert.ok(Math.max(...prepared)>0.01);assert.ok(Math.max(...prepared)<=0.95);assert.equal(prepareVoiceAudio(new Float32Array(16000)),null);assert.equal(prepareVoiceAudio(new Float32Array()),null);const loud=new Float32Array([0.9,-0.9]);assert.equal(prepareVoiceAudio(loud),loud);
 });
+
+test('model download retries one transient network failure, never a memory or runtime error',async()=>{
+ const {loadVoiceModel}=await import('../public/shared/voice-model-loader.js');let calls=0,retries=0;const options={delay:async()=>{},onRetry:()=>{retries++}};
+ const value=await loadVoiceModel(async()=>{if(++calls===1)throw new TypeError('Failed to fetch');return 'ready'},options);assert.equal(value,'ready');assert.equal(calls,2);assert.equal(retries,1);
+ calls=0;await assert.rejects(loadVoiceModel(async()=>{calls++;throw new RangeError('memory allocation failed')},options),/memory/);assert.equal(calls,1);
+ calls=0;await assert.rejects(loadVoiceModel(async()=>{calls++;throw new TypeError('NetworkError')},options),/Network/);assert.equal(calls,2);
+});
