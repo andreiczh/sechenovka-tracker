@@ -15,6 +15,8 @@ import { readConfig } from '../lib/config.mjs';
 import { createTelegram } from '../lib/telegram.mjs';
 import { telegramSessionId } from '../lib/telegram-auth.mjs';
 import { emptyTherapyContext, saveTherapyContext, THERAPY_FIELDS } from '../lib/therapy-support.mjs';
+import { voiceSummary } from '../public/shared/voice-model.js';
+import { startVoiceCapture } from '../public/shared/voice-capture.js';
 const NOW = Date.parse('2026-10-24T08:00:00Z');
 const rows = [{ id: 's0', start: 0, end: 3, text: 'Что стало труднее делать?', role: 'doctor' }, { id: 's1', start: 3, end: 9, text: 'Мне трудно заснуть. Дозу я не менял.', role: 'patient' }];
 const config = readConfig({ OPENROUTER_API_KEY: 'synthetic_key_not_real_123456', AI_PROVIDER: 'openrouter' });
@@ -103,6 +105,8 @@ test('Telegram voice is an expiring inbox, not an answer; playback is limited to
   const meta=await bot.readVoice(id);assert.equal(meta.available,true);assert.equal(meta.fileId,undefined);assert.equal((await bot.readVoice(id,true)).bytes.length,4);assert.equal(downloads,1);
   assert.equal((await bot.readVoice('another-owner')).available,false);
   const before=sends;await bot.handleUpdate(update);assert.equal(sends,before);
+  await bot.handleUpdate({update_id:2,message:{message_id:2,from:{id:user,is_bot:false},chat:{id:user,type:'private'},audio:{file_id:'synthetic-audio-id',duration:8,file_size:4,mime_type:'audio/mp4'}}});assert.equal((await bot.readVoice(id)).available,true);assert.deepEqual(store.get(id).active,persistedBefore.active);
+  await bot.handleUpdate({update_id:3,message:{message_id:3,from:{id:user,is_bot:false},chat:{id:user,type:'private'},audio:{file_id:'invalid',duration:-1,file_size:4}}});assert.equal((await bot.readVoice(id)).available,true);
   now+=3600001;assert.equal((await bot.readVoice(id)).available,false);await assert.rejects(bot.readVoice(id,true),/устарело/);assert.equal(downloads,1);
 });
 
@@ -138,4 +142,43 @@ test('audio processor enforces sample limit independently of browser timers and 
     assert.equal(processor.total,32000);assert.equal(events.filter(e=>e.type==='limit').length,1);assert.equal(events.filter(e=>e.audio).reduce((sum,e)=>sum+e.audio.length,0),32000);
     processor.port.onmessage({data:'resume'});processor.process([[frame]]);assert.equal(processor.total,32000);
   }finally{globalThis.AudioWorkletProcessor=oldBase;globalThis.registerProcessor=oldRegister;globalThis.sampleRate=oldRate;}
+});
+test('closing a recording while microphone permission is pending cannot start a hidden capture after permission arrives',async()=>{
+  const keys=['navigator','window','AudioContext'],descriptors=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let resolveMedia,stopped=0,closed=0,worklets=0;
+  try{
+    const media=new Promise(resolve=>{resolveMedia=resolve});
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:()=>media}}});
+    Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
+    Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='suspended';audioWorklet={addModule:()=>{worklets++;return Promise.resolve()}};resume(){this.state='running';return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
+    const abort=new AbortController(),task=startVoiceCapture({onChunk:()=>{},onState:()=>{},signal:abort.signal});abort.abort();
+    await assert.rejects(task,{name:'AbortError'});assert.equal(closed,1);assert.equal(worklets,0);
+    resolveMedia({getTracks:()=>[{stop:()=>{stopped++}}]});await new Promise(resolve=>setImmediate(resolve));assert.equal(stopped,1);
+  }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
+});
+test('microphone timeout releases the audio context and stops any stream granted after the timeout',async()=>{
+  const keys=['navigator','window','AudioContext'],descriptors=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let resolveMedia,stopped=0,closed=0,resumedBeforeMedia=false;
+  try{
+    const media=new Promise(resolve=>{resolveMedia=resolve});
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:()=>{assert.equal(resumedBeforeMedia,true);return media}}}});
+    Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
+    Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='suspended';resume(){resumedBeforeMedia=true;return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
+    await assert.rejects(startVoiceCapture({onChunk:()=>{},onState:()=>{},setupTimeoutMs:10}),/не завершил запрос микрофона/);assert.equal(closed,1);
+    resolveMedia({getTracks:()=>[{stop:()=>{stopped++}}]});await new Promise(resolve=>setImmediate(resolve));assert.equal(stopped,1);
+  }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
+});
+test('cancellation during worklet loading releases the microphone without starting a recorder',async()=>{
+  const keys=['navigator','window','AudioContext'],descriptors=new Map(keys.map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));let resolveWorklet,stopped=0,closed=0;const phases=[];
+  try{
+    const worklet=new Promise(resolve=>{resolveWorklet=resolve});
+    Object.defineProperty(globalThis,'navigator',{configurable:true,value:{mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop:()=>{stopped++}}]})}}});
+    Object.defineProperty(globalThis,'window',{configurable:true,value:{MediaRecorder:class{},AudioWorkletNode:class{}}});
+    Object.defineProperty(globalThis,'AudioContext',{configurable:true,value:class{state='running';audioWorklet={addModule:()=>worklet};resume(){return Promise.resolve()}close(){closed++;this.state='closed';return Promise.resolve()}}});
+    const abort=new AbortController(),task=startVoiceCapture({onChunk:()=>{},onState:()=>{},onSetup:p=>phases.push(p),signal:abort.signal});
+    await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(phases,['permission','processor']);abort.abort();await assert.rejects(task,{name:'AbortError'});assert.equal(closed,1);assert.ok(stopped>=1);resolveWorklet();
+  }finally{for(const key of keys){const d=descriptors.get(key);if(d)Object.defineProperty(globalThis,key,d);else delete globalThis[key];}}
+});
+
+test('voice summary keeps complete source quotes, attribution and an explicit count of omitted fragments',()=>{
+ const segments=[{id:'s0',role:'doctor',text:'Вы начали принимать препарат?',topics:['medicines']},{id:'s1',role:'patient',text:'Я НЕ принимаю лекарства.',topics:['medicines','history']},{id:'s2',role:'patient',text:'Не сплю вторую неделю.',topics:['sleep','complaints']},{id:'s3',role:'doctor',text:'Давайте обсудим следующий контакт.',topics:['plan']},{id:'s4',role:'unknown',text:'Неясно, кто это сказал.',topics:['other']}];
+ const summary=voiceSummary(segments,3);assert.deepEqual(summary.segments.map(s=>s.id),['s2','s1','s3']);assert.equal(summary.omitted,2);assert.equal(summary.segments[1].text,'Я НЕ принимаю лекарства.');assert.equal(summary.segments[2].role,'doctor');assert.deepEqual(voiceSummary([]),{segments:[],omitted:0});
 });

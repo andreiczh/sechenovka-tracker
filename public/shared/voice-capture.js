@@ -8,7 +8,7 @@ export class VoiceRecognizer {
         if (data.type === 'ready') { this.readyResolve(); this.progress('Речевой модуль готов'); }
         else if (data.type === 'progress') this.progress(data.file ? `Загрузка модуля: ${String(data.file).split('/').at(-1)}${Number.isFinite(data.progress) ? ' · ' + Math.round(data.progress) + '%' : ''}` : 'Подготовка речевого модуля…');
         else if (data.type === 'result') { this.jobs.get(data.id)?.resolve(data.result); this.jobs.delete(data.id); }
-        else if (data.type === 'error') { if (data.id) { this.jobs.get(data.id)?.reject(new Error(data.message)); this.jobs.delete(data.id); } else { this.readyReject(new Error(data.message)); this.worker?.terminate(); this.ready = null; } }
+        else if (data.type === 'error') { const error = new Error(data.message + (data.diagnostic ? ' Детали сбоя: ' + data.diagnostic : '')); if (data.id) { this.jobs.get(data.id)?.reject(error); this.jobs.delete(data.id); } else { this.readyReject(error); this.worker?.terminate(); this.ready = null; } }
       };
       this.worker.onerror = () => { const error = new Error('Речевой модуль не запустился. Можно вписать текст или повторить загрузку.'); this.readyReject(error); for (const job of this.jobs.values()) job.reject(error); this.jobs.clear(); this.worker?.terminate(); this.ready = null; };
       this.worker.postMessage({ type: 'load' });
@@ -41,14 +41,36 @@ export async function decodeVoiceFile(file, maximumSeconds) {
     try { const buffer = await context.decodeAudioData(await file.arrayBuffer()); const offline = new OfflineAudioContext(1, Math.ceil(buffer.duration * 16000), 16000), source = offline.createBufferSource(); source.buffer = buffer; source.connect(offline.destination); source.start(); const decoded = await offline.startRendering(); return { audio: decoded.getChannelData(0).slice(), duration: buffer.duration }; } finally { await context.close(); }
   } finally { URL.revokeObjectURL(url); audio.removeAttribute('src'); audio.load(); }
 }
-export async function startVoiceCapture({ onChunk, onState, onEnded = () => {}, maximumSeconds = 3600, inputStream = null }) {
+export async function startVoiceCapture({ onChunk, onState, onEnded = () => {}, onSetup = () => {}, maximumSeconds = 3600, inputStream = null, signal = null, setupTimeoutMs = 30000 }) {
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder || !window.AudioWorkletNode) throw new Error('В этом окне запись недоступна. Откройте сайт в Safari/Chrome или загрузите аудиофайл.');
-  let stream, context, recorder, node, source, timer, hiddenListener; const blobs = []; let elapsed = 0, paused = false, stopping = false, startAt = 0, pausedAt = 0, pausedTotal = 0;
+  let stream, context, contextClosing, recorder, node, source, timer, hiddenListener, abortListener, setupCancel; const blobs = []; let elapsed = 0, paused = false, stopping = false, disposed = false, startAt = 0, pausedAt = 0, pausedTotal = 0;
   const seconds = () => Math.min(maximumSeconds, Math.floor(((paused ? pausedAt : performance.now()) - startAt - pausedTotal) / 1000));
-  const cleanup = async () => { clearInterval(timer); if(hiddenListener)document.removeEventListener('visibilitychange',hiddenListener); node?.disconnect(); source?.disconnect(); stream?.getTracks().forEach(t => t.stop()); if (context && context.state !== 'closed') await context.close(); };
+  const closeContext = () => contextClosing ||= context && context.state !== 'closed' ? context.close() : Promise.resolve();
+  const cleanup = async () => { disposed = true; clearInterval(timer); if(hiddenListener)document.removeEventListener('visibilitychange',hiddenListener);if(abortListener)signal?.removeEventListener('abort',abortListener); node?.disconnect(); source?.disconnect(); stream?.getTracks().forEach(t => t.stop()); await closeContext(); };
+  const checkAborted = () => { if (signal?.aborted) throw new DOMException('Запись отменена', 'AbortError'); };
+  const waitForSetup = (promise, message) => {
+    let timeout;
+    return new Promise((resolve, reject) => {
+      timeout = setTimeout(() => reject(new Error(message)), setupTimeoutMs);
+      setupCancel = () => reject(new DOMException('Запись отменена', 'AbortError'));
+      Promise.resolve(promise).then(resolve, reject);
+    }).finally(() => { clearTimeout(timeout); setupCancel = null; });
+  };
   try {
-    stream = inputStream || await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
-    context = new AudioContext(); await context.audioWorklet.addModule('/shared/voice-audio-worklet.js'); await context.resume();
+    checkAborted();
+    // Resume in the original click gesture, before permission/model/worklet awaits.
+    // Safari may otherwise leave a suspended context waiting indefinitely.
+    context = new AudioContext();
+    const resumed = context.resume(); resumed.catch(() => {});
+    abortListener = () => { setupCancel?.(); stream?.getTracks().forEach(t=>t.stop());void closeContext().catch(()=>{}); };signal?.addEventListener('abort',abortListener,{once:true});
+    onSetup('permission');
+    const media = Promise.resolve(inputStream || navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false })).then(value => { if(disposed || signal?.aborted){value.getTracks().forEach(t=>t.stop());throw new DOMException('Запись отменена','AbortError');}return value; });
+    stream = await waitForSetup(media, 'Браузер не завершил запрос микрофона. Проверьте разрешение сайта и повторите запись; можно загрузить аудиофайл.');
+    checkAborted();
+    onSetup('processor');
+    await waitForSetup(context.audioWorklet.addModule('/shared/voice-audio-worklet.js'), 'Не загрузился обработчик записи. Проверьте сеть и повторите.');checkAborted();
+    onSetup('audio');
+    await waitForSetup(resumed, 'Браузер не включил аудио. Нажмите «Начать запись» ещё раз или откройте сайт в обычном браузере.');checkAborted();
     node = new AudioWorkletNode(context, 'voice-pcm', { processorOptions: { maximumSeconds } }); source = context.createMediaStreamSource(stream); source.connect(node); node.connect(context.destination);
     const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
     recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 48000 } : { audioBitsPerSecond: 48000 });
@@ -65,5 +87,5 @@ export async function startVoiceCapture({ onChunk, onState, onEnded = () => {}, 
     hiddenListener = () => { if(document.hidden&&!paused){capture.pause();onState('hidden',seconds());} }; document.addEventListener('visibilitychange',hiddenListener);
     timer = setInterval(() => { elapsed = seconds(); onState(paused ? 'paused' : 'recording', elapsed); if (elapsed >= maximumSeconds) ended('limit'); }, 1000);
     return capture;
-  } catch (error) { await cleanup(); if (error.name === 'NotAllowedError') throw new Error('Микрофон не разрешён. Разрешите его в настройках сайта или загрузите аудиофайл.'); if (error.name === 'NotFoundError') throw new Error('Микрофон не найден. Можно загрузить запись или вписать текст.'); throw error; }
+  } catch (error) { await cleanup(); if (error.name === 'NotAllowedError') throw new Error('Микрофон не разрешён. Разрешите его в настройках сайта или загрузите аудиофайл.'); if (error.name === 'NotFoundError') throw new Error('Микрофон не найден. Можно загрузить запись или вписать текст.'); if(error.name==='NotReadableError')throw new Error('Микрофон занят или недоступен системе. Закройте другую запись и повторите; можно загрузить аудиофайл.'); throw error; }
 }

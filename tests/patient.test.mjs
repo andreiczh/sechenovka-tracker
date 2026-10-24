@@ -122,19 +122,19 @@ test('invalid duplicate reminder times and unknown timezone are rejected', () =>
 test('bot text and bottom buttons use the same saved answers as Mini App', () => {
   const state = createPatient(WALL);
   action(state, { type: 'bot', text: 'Мне 18+, начать' });
-  assert.match(botKeyboard(state)[0][0], /^0 · Совсем нет$/);
+  assert.match(botKeyboard(state, new Date(WALL).toISOString())[0][0], /^0 · Совсем нет$/);
   action(state, { type: 'bot', text: '2' }); assert.equal(state.active.values['phq-0'], 2);
   action(state, { type: 'bot', text: 'не понимаю' }); assert.equal(state.active.cursor, 1);
   action(state, { type: 'answer', questionId: 'phq-1', value: 1 });
   assert.equal(state.active.cursor, 2);
   action(state, { type: 'bot', text: 'В течение нескольких дней' });
   assert.equal(state.active.values['phq-2'], 1);
-  const payload = telegramReplyPayload(state, 12345);
+  const payload = telegramReplyPayload(state, 12345, new Date(WALL).toISOString());
   assert.equal(payload.reply_markup.resize_keyboard, true);
   assert.equal(payload.reply_markup.keyboard[0][0].text, '0 · Совсем нет');
   assert.throws(() => telegramReplyPayload(state, 'unverified'));
   action(state, { type: 'bot', text: 'Пауза' });
-  assert.deepEqual(botKeyboard(state)[0], ['Продолжить']);
+  assert.deepEqual(botKeyboard(state, new Date(WALL).toISOString())[0], ['Продолжить']);
   const cursor = state.active.cursor;
   action(state, { type: 'bot', text: 'Продолжить' });
   assert.equal(state.active.cursor, cursor);

@@ -13,5 +13,9 @@ self.onmessage = async ({ data }) => {
     if (data.type === 'load') { self.postMessage({ type: 'ready' }); return; }
     const result = await transcribe(data.audio, { language: 'russian', task: 'transcribe', return_timestamps: true, chunk_length_s: 25, stride_length_s: 4 });
     self.postMessage({ type: 'result', id: data.id, result });
-  } catch { model = null; self.postMessage({ type: 'error', id: data.id, message: 'Не удалось распознать запись на устройстве. Попробуйте ещё раз, загрузите другой файл или впишите текст.' }); }
+  } catch (error) {
+    model = null;
+    const detail = String(error?.message || error?.name || 'unknown').replace(/https?:\/\/\S+/g, '[источник модуля]').slice(0, 220);
+    self.postMessage({ type: 'error', id: data.id, message: data.type === 'load' ? 'Не загрузился речевой модуль. Повторите попытку или откройте сайт в обычном браузере.' : 'Не удалось распознать запись. Можно сохранить аудио и дополнить текст.', diagnostic: detail });
+  }
 };

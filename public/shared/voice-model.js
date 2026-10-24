@@ -29,6 +29,14 @@ export function normalizeVoiceSegments(values, scope = 'patient') {
 export function voiceGroups(segments) {
   return Object.entries(VOICE_TOPICS).map(([id, title]) => ({ id, title, segments: segments.filter(s => s.topics.includes(id)) })).filter(g => g.segments.length);
 }
+export function voiceSummary(segments, limit = 6) {
+  const selected = [], seen = new Set();
+  const add = row => { if(row && !seen.has(row.id) && selected.length < limit){seen.add(row.id);selected.push(row);} };
+  for(const topic of ['complaints','course','sleep','function','medicines','safety','history','goal']) add(segments.find(s=>s.role==='patient' && s.topics?.includes(topic)));
+  add(segments.find(s=>s.role==='doctor' && s.topics?.includes('plan')));
+  for(const role of ['patient','unknown','doctor']) for(const row of segments.filter(s=>s.role===role)) add(row);
+  return { segments:selected, omitted:Math.max(0,segments.length-selected.length) };
+}
 export function voiceTimestamp(seconds) { if (seconds === null || seconds === undefined) return 'без времени'; return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`; }
 export function voiceText(note) {
   return `ТРЕКЕР СЕЧЕНОВКА · ${note.scope === 'patient' ? 'ЗАМЕТКА' : 'БЕСЕДА'}\n${note.at || ''}\n${note.title || ''}\n${note.ai?.complete === false ? 'ИИ-СТРУКТУРА ЧАСТИЧНАЯ: проверены не все фрагменты.\n' : ''}${note.incomplete ? 'ЧАСТИЧНАЯ РАСШИФРОВКА: часть записи не распознана или обработка остановлена.\n' : ''}Вымышленные данные. Расшифровка проверена пользователем; клинические выводы требуют отдельной оценки.\n\n${note.segments.map(s => `[${voiceTimestamp(s.start)}] ${VOICE_ROLES[s.role]}: ${s.text}`).join('\n')}\n\n${note.vopObservations?.length || note.vopSafety?.length ? 'ОТМЕТКИ ВОП ПРИ СОХРАНЕНИИ\n' + [...(note.vopObservations || []), ...(note.vopSafety || [])].join('\n') + '\nОтдельные отметки не являются диагнозом.\n\n' : ''}ПО ТЕМАМ\n${voiceGroups(note.segments).map(g => `${g.title}\n${g.segments.map(s => `${VOICE_ROLES[s.role]}: ${s.text}`).join('\n')}`).join('\n\n')}\n\nВОПРОСЫ К БЕСЕДЕ\n${(note.questions || []).map(id => VOICE_QUESTIONS[id]).filter(Boolean).join('\n')}\n\nРеплики — сохранённый текст, а не подтверждённые клинические факты. Диагноз, баллы анкет, назначения и врачебный план автоматически не изменяются.`;
