@@ -4,9 +4,9 @@ import { scoreAssessment, FUNCTION_LABELS } from '../shared/clinical.js';
 export function visitPreparation(state) {
   const last=state.assessments?.at(-1), scores=last?scoreAssessment(last):null;
   const goal=state.appointment?.question?.trim()||last?.context?.goal?.trim();
-  const parts=[goal?`Хочу обсудить: ${goal}`:'Хочу обсудить своё самочувствие: что меня беспокоит и как это влияет на мою жизнь.'];
+  const parts=[goal?goal+(/[.!?]$/.test(goal)?'':'.'):'Хочу обсудить своё самочувствие: что меня беспокоит и как это влияет на мою жизнь.'];
   if(last?.context?.duration)parts.push(`Замечаю изменения: ${last.context.duration.toLowerCase()}.`);
-  if(last&&FUNCTION_LABELS[last.context?.function])parts.push(`В анкете отметил(а), что состояние ${FUNCTION_LABELS[last.context.function].toLowerCase()}.`);
+  if(last&&FUNCTION_LABELS[last.context?.function])parts.push(['За последние две недели обычным делам это не мешало.','За последние две недели это немного мешало обычным делам.','За последние две недели это сильно мешало обычным делам.','За последние две недели мне почти не удавалось справляться с обычными делами.'][last.context.function]);
   if(scores)parts.push(`Мои последние результаты: PHQ-9 — ${scores.phq.score} из 27, GAD-7 — ${scores.gad.score} из 21. Хочу понять их значение вместе с врачом.`);
   else parts.push('Анкеты пока не завершены. Я могу рассказать о самочувствии без готовых баллов.');
   const questions=[{id:'reason',text:'Что может объяснять моё состояние и что стоит уточнить или проверить?'}];
