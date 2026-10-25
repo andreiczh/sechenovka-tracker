@@ -190,9 +190,14 @@ export function startViewport({ mainSelector = 'main.main', watchSelector = '#ap
     queued = false; if (running) return; running = true; observer.disconnect();
     try {
       const main = document.querySelector(mainSelector);
-      if (main && !skip(main)) paginate(main, `${location.pathname}:${location.hash}`);
+      // Patient screens no longer use fragment pagination. This guard also
+      // restores a previously cached client that still invokes startViewport.
+      const patientScreen = location.pathname === '/patient/' || location.pathname === '/patient/index.html';
+      if (main && patientScreen) { if (main.classList.contains('viewport-workspace')) restore(main); }
+      else if (main && !skip(main)) paginate(main, `${location.pathname}:${location.hash}`);
       else if (main?.classList.contains('viewport-workspace')) restore(main);
       for (const dialog of document.querySelectorAll('dialog')) {
+        if (patientScreen) { if (dialog.classList.contains('viewport-workspace')) restore(dialog); continue; }
         if (dialog.dataset.managedDialog) continue;
         if (!dialog.open) { if (dialog.classList.contains('viewport-workspace')) restore(dialog); continue; }
         if (dialog.classList.contains('viewport-workspace') || dialog.scrollHeight > dialog.clientHeight + 2) paginate(dialog, `dialog:${dialog.id}`);

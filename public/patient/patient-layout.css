@@ -1,0 +1,149 @@
+/* Patient screens are whole tasks. Never paginate card fragments by height. */
+.patient-app{--patient-space:14px;font-size:15px}
+.patient-app #app,.patient-app .shell{height:100%;min-height:0}
+.patient-app .main-shell{margin-left:0!important;height:100dvh!important;min-height:0;display:flex;flex-direction:column}
+.patient-app .topbar{height:46px!important;min-height:46px!important;padding:0 16px!important;border-bottom:1px solid var(--line);background:#fff}
+.patient-app .topbar .brand{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap}
+.patient-app .topbar .brand img{width:25px;height:25px}
+.patient-app .topbar-right{display:flex;align-items:center;gap:6px;margin-left:auto}
+.patient-app .patient-advice{border:0;background:var(--green-soft);color:var(--green);border-radius:8px;min-height:34px;padding:6px 11px;font:500 13px var(--ui-font)}
+.patient-app .patient-info,.patient-app .mobile-settings{display:grid!important;place-items:center;border:0;background:transparent;color:var(--muted);width:34px;height:36px;padding:7px}
+.patient-app .patient-info .icon,.patient-app .mobile-settings .icon{width:19px;height:19px}
+.patient-app .main-shell>.main{flex:1;min-height:0;overflow-y:auto!important;overflow-x:hidden!important;padding:16px max(16px,calc((100vw - 1080px)/2)) 18px!important;overscroll-behavior:contain;scrollbar-gutter:stable;width:100%;max-width:none}
+.patient-app .app-nav{order:3;position:static!important;inset:auto!important;display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));flex:none;width:100%;max-width:none;height:auto!important;min-height:58px;padding:4px max(4px,calc((100vw - 720px)/2)) calc(4px + env(safe-area-inset-bottom));margin:0;border:0;border-top:1px solid var(--line);overflow:visible!important;background:#fff;z-index:10;gap:2px}
+.patient-app .app-nav a{display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:46px;padding:5px 2px!important;font-size:11px!important;font-weight:500;line-height:1.2;border:0!important;color:var(--muted);white-space:nowrap;overflow:visible;border-radius:9px}
+.patient-app .app-nav a::after{display:none!important}
+.patient-app .app-nav a[aria-current=page]{color:var(--green);background:var(--green-soft);font-weight:600}
+.patient-app .app-nav .icon{display:block!important;width:19px;height:19px;margin:0}
+.patient-app .patient-page-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 12px;min-height:30px}
+.patient-app .patient-page-title h1{font-size:23px!important;line-height:1.3;font-weight:600;letter-spacing:-.5px;margin:0}
+.patient-app .patient-page-title>p{display:none}
+.patient-app .patient-day{margin-left:auto;color:var(--muted);font-size:12px}
+.patient-app h2{font-size:18px;line-height:1.35;letter-spacing:-.2px;font-weight:600}
+.patient-app h3{font-size:15px;line-height:1.4;letter-spacing:normal;font-weight:600}
+.patient-app p{font-size:14px;line-height:1.55;margin:7px 0 12px}
+.patient-app .card{padding:16px;border-radius:13px;margin-bottom:12px;min-width:0;box-shadow:none}
+.patient-app .button{min-height:44px;padding:10px 14px;font-size:14px;line-height:1.4;border-radius:9px;justify-content:center;gap:8px}
+.patient-app .text-link{font-size:13px;line-height:1.5;min-height:32px;display:inline-flex;align-items:center;gap:4px}
+.patient-app .small,.patient-app .muted{font-size:12px;line-height:1.5}
+.patient-app .patient-section-note{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0 12px}
+.patient-app .patient-task{background:#f5f8f5;border-color:#dce7de}
+.patient-app .patient-task-top{display:flex;align-items:center;justify-content:space-between;color:var(--green);font-size:12px;margin-bottom:8px}
+.patient-app .patient-task-top .icon{width:18px;height:18px}
+.patient-app .patient-task h2{font-size:21px;margin:0 0 6px}
+.patient-app .patient-task>p{margin:0 0 14px;max-width:600px;color:var(--muted)}
+.patient-app .patient-task>.button{width:100%;max-width:420px;display:flex}
+.patient-app .patient-bot-link{margin-top:8px}
+.patient-app .patient-voice-shortcut{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.patient-app .patient-voice-shortcut h2{font-size:15px;margin:0}
+.patient-app .patient-voice-shortcut p{font-size:13px;margin:4px 0 0;color:var(--muted)}
+.patient-app .patient-voice-shortcut .voice-trigger{flex:none;min-height:42px;background:#fff;border-color:#bfd2c3;font-size:13px;padding:8px 11px;border-radius:9px;gap:6px}
+.patient-app .patient-voice-shortcut .voice-trigger svg{width:18px;height:18px}
+.patient-app .patient-home-data{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.patient-app .patient-home-data .card{margin:0 0 12px}
+.patient-app .patient-home-data h2{font-size:15px}
+.patient-app .patient-home-data .mini-score{padding:6px 0}
+.patient-app .patient-home-data .number{font-size:24px}
+.patient-app .patient-home-data .number span,.patient-app .patient-home-data .mini-score small{font-size:11px}
+.patient-app .patient-home-data .appointment-mini{font-size:19px;margin:6px 0}
+.patient-app .patient-home-data .appointment-mini span{font-size:12px}
+.patient-app .patient-quick-links{display:flex;gap:10px;flex-wrap:wrap;padding:0 0 8px}
+.patient-app .patient-quick-links a{display:inline-flex;align-items:center;gap:6px;font-size:12px;min-height:36px;color:var(--green)}
+.patient-app .patient-quick-links .icon{width:16px;height:16px}
+.patient-app .patient-sharing,.patient-app .patient-reassurance{font-size:12px;color:var(--muted);margin:2px 0 12px}
+.patient-app .patient-details{border-top:1px solid var(--line);padding:0;margin:6px 0 0}
+.patient-app .patient-details>summary{padding:13px 0;min-height:44px;color:var(--green);font-size:13px;font-weight:500;cursor:pointer;line-height:1.4}
+.patient-app .patient-details[open]>summary{margin-bottom:8px}
+.patient-app .patient-details .card{background:#fff}
+.patient-app .patient-empty{padding:22px 18px;max-width:650px;text-align:left}
+.patient-app .patient-empty h2{font-size:19px;margin:0 0 8px}
+.patient-app .patient-empty p{margin:0 0 18px;color:var(--muted)}
+.patient-app .patient-empty .button{display:inline-flex;width:auto}
+.patient-app .patient-score-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.patient-app .patient-score-grid .score-card{margin:0;padding:15px}
+.patient-app .patient-score-name{font-size:13px;font-weight:600}
+.patient-app .patient-score-name>span{display:block;font-size:12px;color:var(--muted);font-weight:400;margin:3px 0 8px}
+.patient-app .score-big{font-size:36px;line-height:1.1;margin:8px 0;font-weight:500;letter-spacing:-1px}
+.patient-app .score-big span{font-size:13px;letter-spacing:0;margin-left:5px}
+.patient-app .score-label{font-size:12px;line-height:1.45;min-height:34px;margin:8px 0 0;overflow-wrap:anywhere}
+.patient-app .patient-score-change{font-size:12px;margin:8px 0}
+.patient-app .patient-score-explain{font-size:12px;margin:10px 0 0}
+.patient-app .patient-score-explain summary{color:var(--green);cursor:pointer;line-height:1.4}
+.patient-app .patient-score-explain p{font-size:12px}
+.patient-app .patient-result-next{margin:14px 0}
+.patient-app .answer-list li{font-size:13px;gap:12px;padding:12px 0}
+.patient-app .answer-list .answer-value{min-width:100px;font-size:12px}
+.patient-app .patient-chart-controls{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}
+.patient-app .patient-chart-controls button{border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:36px;font-size:13px;background:#fff;color:var(--muted)}
+.patient-app .patient-chart-controls button[aria-pressed=true]{background:var(--green-soft);border-color:#aac3b2;color:var(--green)}
+.patient-app .patient-chart-card .chart-wrap{padding:0;min-width:0}
+.patient-app .patient-chart-card .chart{display:block;width:100%;height:200px;max-height:200px}
+.patient-app .patient-chart-card .legend{font-size:11px;gap:7px 14px;margin:8px 0;flex-wrap:wrap}
+.patient-app .patient-chart-card .legend span{font-size:11px}
+.patient-app .patient-chart-card .metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:12px 0}
+.patient-app .metric-box{padding:10px 8px;background:#f5f8f5;border:0;border-radius:8px}
+.patient-app .metric-box small{font-size:11px;line-height:1.4}
+.patient-app .metric-box strong{font-size:23px;line-height:1.2;margin-top:5px}
+.patient-app .metric-box strong span{font-size:12px;margin-left:3px}
+.patient-app .patient-chart-card>.patient-section-note:last-child{margin-bottom:0}
+.patient-app .patient-visit-prep .card-header{margin-bottom:10px;align-items:center;gap:10px}
+.patient-app .patient-visit-prep .card-header h2{font-size:17px;margin:0}
+.patient-app .patient-opening{padding-left:12px;border-left:3px solid #a6c2af;font-size:14px;margin:0 0 18px;line-height:1.6}
+.patient-app .patient-visit-prep h3{font-size:15px;margin:12px 0 8px}
+.patient-app .patient-visit-questions{padding-left:21px;margin:0;font-size:14px;line-height:1.55}
+.patient-app .patient-visit-questions li+li{margin-top:8px}
+.patient-app .patient-visit-prep>.patient-section-note{margin:14px 0 0}
+.patient-app .summary-box{font-size:12px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:none}
+.patient-app .patient-welcome{max-width:600px;margin:0 auto}
+.patient-app .patient-welcome-image{width:100%;height:95px;object-fit:cover;object-position:top;border-radius:8px;margin-bottom:15px}
+.patient-app .patient-welcome h1{font-size:24px;line-height:1.25;letter-spacing:-.4px;margin:0 0 10px}
+.patient-app .patient-welcome-points{font-size:13px;line-height:1.5;padding-left:18px;margin:12px 0 16px}
+.patient-app .patient-welcome-points li+li{margin-top:5px}
+.patient-app .patient-welcome .check-row{font-size:13px;line-height:1.5;margin:14px 0}
+.patient-app .patient-welcome>.button{width:100%;display:flex}
+.patient-app .patient-welcome>.text-link{margin:9px 0}
+.patient-app .patient-welcome>.small{margin:0}
+.patient-app .question-shell{max-width:680px;margin:0 auto}
+.patient-app .question-top{margin:0 0 8px;gap:10px;font-size:12px}
+.patient-app .progress-track{margin-bottom:12px;height:4px}
+.patient-app .question-card h1{font-size:21px;line-height:1.4;margin:12px 0 16px}
+.patient-app .question-card{padding:18px}
+.patient-app .question-window{font-size:13px;margin:0 0 8px}
+.patient-app .question-instruction{font-size:13px;margin:0 0 12px}
+.patient-app .option-list{gap:8px}
+.patient-app .answer-button{font-size:15px;min-height:48px;padding:11px 13px;line-height:1.4}
+.patient-app .question-actions{margin-top:15px;font-size:12px;gap:12px}
+.patient-app .question-actions .text-link{font-size:12px}
+.patient-app .question-footnote{font-size:11px;line-height:1.45;margin:10px 0}
+.patient-app .attention-link{font-size:12px;min-height:34px;padding:8px 0;margin-top:4px}
+.patient-app .form-field input,.patient-app .form-field textarea,.patient-app .form-field select{font-size:16px;line-height:1.4}
+.patient-app .form-field{margin-bottom:14px}
+.patient-app .modal{max-height:90dvh;overflow-y:auto}
+.patient-app .notice{padding:12px 14px;font-size:13px;line-height:1.5;margin:10px 0}
+.patient-app .voice-notes-card{margin-top:12px}
+.patient-app .voice-note-link{padding:11px 12px}
+.patient-app .voice-note-link strong{font-size:14px}
+.patient-app .voice-note-link span{font-size:12px}
+@media(min-width:850px){
+  .patient-app .patient-home{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:0 16px}
+  .patient-app .patient-task{grid-column:1;grid-row:span 2}
+  .patient-app .patient-voice-shortcut,.patient-app .patient-home-data{grid-column:2}
+  .patient-app .patient-quick-links,.patient-app .patient-home>.patient-details,.patient-app .patient-home>.attention-link,.patient-app .patient-sharing,.patient-app .patient-reassurance{grid-column:1/-1}
+  .patient-app .patient-score-grid{max-width:720px}
+  .patient-app .patient-chart-card{max-width:900px}
+}
+@media(max-width:450px){
+  .patient-app .main-shell>.main{padding:12px 14px 16px!important;scrollbar-gutter:auto}
+  .patient-app .patient-page-title h1{font-size:21px!important}
+  .patient-app .patient-voice-shortcut{display:block}
+  .patient-app .patient-voice-shortcut .voice-trigger{margin-top:11px;min-height:42px;width:100%;justify-content:center}
+  .patient-app .patient-home-data{gap:8px}
+  .patient-app .patient-home-data .card{padding:12px}
+  .patient-app .patient-home-data .card-header{display:block;margin-bottom:8px}
+  .patient-app .patient-home-data .card-header .text-link{display:none}
+  .patient-app .patient-home-data .mini-score small{display:none}
+  .patient-app .patient-home-data .mini-score .number{font-size:21px}
+  .patient-app .patient-home-data .appointment-mini{font-size:16px}
+  .patient-app .patient-chart-card .chart{height:185px;max-height:185px}
+}
+@media print{.patient-app .main-shell,.patient-app .main-shell>.main{height:auto!important;overflow:visible!important}.patient-app .app-nav,.patient-app .topbar{display:none!important}.patient-app details>*{display:block!important}}

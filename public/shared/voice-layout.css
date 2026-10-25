@@ -1,4 +1,32 @@
 /* The recording tool has one task per screen; secondary tools stay collapsed. */
+.voice-dialog.voice-quick{height:min(680px,calc(100dvh - 24px));width:min(600px,calc(100vw - 20px))}
+.voice-quick .voice-head{padding:16px 18px;align-items:center;border-bottom:1px solid #e3eae4}
+.voice-quick .voice-head h2{font-size:20px}
+.voice-quick .voice-head .window-close{width:34px;height:34px;min-height:34px;padding:3px;font-size:26px;border:0;background:#f4f7f4;border-radius:9px}
+.voice-quick .voice-body{padding:16px 18px}
+.voice-quick .voice-foot{padding:12px 18px}
+.voice-quick .voice-foot>p:empty{display:none}
+.voice-quick .voice-quick-center{text-align:center;padding:12px 10px}
+.voice-quick .voice-quick-center>svg{width:35px;height:35px;fill:none;stroke:#416c55;stroke-width:1.7}
+.voice-quick .voice-quick-center h3{font-size:18px;margin:10px 0 6px}
+.voice-quick .voice-quick-center p{font-size:14px;color:#5f7165;margin:0}
+.voice-quick .voice-privacy,.voice-quick .voice-location{font-size:12px!important;line-height:1.5;margin:10px 0!important;color:#627367}
+.voice-quick .voice-location{border:0;background:transparent;padding:0}
+.voice-quick .voice-quick-live{padding:10px 0 0;text-align:center}
+.voice-quick .voice-live{margin:12px 0 5px;gap:10px}
+.voice-quick .voice-live strong{font-size:42px;font-weight:500;line-height:1.2}
+.voice-quick .voice-quick-live meter{display:block;width:100%;height:11px;max-width:280px;margin:12px auto 14px;accent-color:#416c55}
+.voice-quick .voice-quick-live>.voice-muted{font-size:14px;margin:10px auto 0;max-width:340px}
+.voice-quick .voice-capture-actions{margin:16px 0 10px;gap:10px}
+.voice-quick .voice-capture-actions .voice-primary{width:100%;justify-content:center;min-height:46px;font-size:14px}
+.voice-quick .voice-capture-actions .voice-small{margin:0 auto;font-size:13px;border:0}
+.voice-quick .voice-patient-transcript{display:flex;flex-direction:column;gap:9px;font-size:13px;color:#5f7165;margin:12px 0}
+.voice-quick .voice-patient-transcript textarea{width:100%;height:190px;min-height:120px;resize:vertical;padding:12px;font:16px/1.55 var(--ui-font,-apple-system,sans-serif);color:#24372e;border:1px solid #cddbd0;border-radius:9px;background:#fff}
+.voice-quick .voice-patient-transcript textarea:disabled{background:#f7faf7;color:#5f7165}
+.voice-quick .voice-processing{font-size:13px!important;padding:11px 12px;background:#f0f5f1;border-radius:8px;color:#416c55}
+.voice-quick .voice-urgent{font-size:12px!important;line-height:1.5!important;color:#985b51;background:#fbf1ee;padding:9px 11px;border-radius:8px}
+.voice-quick .voice-details{margin-top:12px;padding-top:8px}
+@media(max-width:600px){.voice-dialog.voice-quick{width:calc(100vw - 16px);height:min(620px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);border-radius:15px;margin:auto}.voice-quick .voice-patient-transcript textarea{height:160px}.voice-quick .voice-foot .voice-check{font-size:13px;line-height:1.45}.voice-quick .voice-foot-actions{gap:8px}.voice-quick .voice-foot-actions .voice-primary{font-size:14px;min-height:44px}.voice-quick .voice-foot-actions .voice-small{font-size:12px;padding:6px}}
 .voice-dialog{width:min(760px,calc(100vw - 32px));height:min(830px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);border-radius:16px;font:15px/1.55 var(--ui-font,-apple-system,sans-serif)}
 .voice-dialog[open]{display:flex;flex-direction:column}
 .voice-head{align-items:flex-start;padding:20px 24px 16px;border:0;flex:none}
