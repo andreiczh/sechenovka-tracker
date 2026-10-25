@@ -1,5 +1,16 @@
 import { scoreAssessment, FUNCTION_LABELS } from '../shared/clinical.js';
 
+// Presentation only. Reading help must never change a safety answer or flow.
+export function patientHelpState(state) {
+  const critical=Boolean(state.safety?.needsGuidance)||['urgent','unknown'].includes(state.safety?.level);
+  const pending=state.safety?.pending===true;
+  const contact=state.safety?.level==='contact';
+  return {critical,pending,flagged:critical||pending||contact,
+    title:critical?'При опасности сейчас — 112.':pending?'Уточните ответ о безопасности.':contact?'Обсудите этот ответ с врачом скорее.':'',
+    detail:critical?'Не ждите ответа в приложении.':'',
+  };
+}
+
 // A preparation aid from saved self-report, never an inferred diagnosis.
 export function visitPreparation(state) {
   const last=state.assessments?.at(-1), scores=last?scoreAssessment(last):null;
